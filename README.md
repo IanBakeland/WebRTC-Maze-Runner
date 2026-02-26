@@ -5,21 +5,36 @@
 
 ## 📖 Development Diary
 
-### Milestone 1: De Basis & Verbinding
+### MVP 1: Socket.io Signaling & 1-op-1 Controle
 
-Deze week ben ik gestart met het opzetten van de basisstructuur van mijn project. Ik heb de volgende stappen ondernomen:
+Deze week heb ik de volledige basis neergezet: een werkende 1-op-1 verbinding tussen desktop en smartphone via Socket.io.
 
 - **Project Initialisatie:**  
-  Ik heb een nieuwe map aangemaakt en de nodige pakketten geïnstalleerd (`express` en `socket.io`) via de terminal.
+  Nieuwe map aangemaakt, `express` en `socket.io` geïnstalleerd via `npm install`. `.gitignore` aangemaakt zodat `node_modules/` niet in de repo zit. `npm start` script toegevoegd aan `package.json`.
 
 - **Gids gevolgd:**  
-  Ik heb de GitHub gids over Websockets van de les gebruikt om te begrijpen hoe een server en een client met elkaar praten.
+  Ik heb de Websockets gids uit de les gevolgd, specifiek de secties "One to one communication", "Controller client" en "QR Code".
+
+- **Signaling Server (`index.js`):**  
+  Express server met Socket.io die 1-op-1 forwarding doet. De server houdt verbonden users bij in een `users` object en forwardt `update` events naar een specifiek `targetSocketId` via `socket.to(targetSocketId).emit()`.
+
+- **Desktop Page (`public/index.html`):**  
+  Maakt een Socket.io verbinding, toont het Socket ID en de controller URL. Luistert naar `update` events en beweegt een rode cursor (`<div>` met class `.cursor`) op basis van de ontvangen x/y coördinaten. QR code wordt gegenereerd met de `qrcode-generator` CDN library.
+
+- **Controller Page (`public/controller.html`):**  
+  Leest het desktop Socket ID uit de querystring (`?id=`). Stuurt `mousemove` en `touchmove` events naar de server met het `targetSocketId` en relatieve x/y coördinaten.
+
+- **QR Code:**  
+  De desktop page toont een QR code met de controller URL. Zo kan je met je smartphone de URL scannen in plaats van overtypen.
 
 - **Branching:**  
-  Ik ben begonnen met werken in een aparte branch `feature/initial-setup-and-server` volgens de GitHub Flow methode.
+  Ik werk met de GitHub Flow methode: feature branches per onderdeel, merge naar `main` voor een werkende MVP.
 
-- **Signaling Server:**  
-  Ik heb een basis `server.js` opgezet die verbindingen accepteert. Dit is de eerste stap om later de WebRTC-verbinding te maken.
+#### Plan voor volgende week (MVP 2)
+- WebRTC Data Channel implementeren voor de aansturing (in plaats van Socket.io)
+- Socket.io wordt dan enkel nog gebruikt als signaling layer (offer/answer/ICE candidates uitwisselen)
+- Desktop experience uitbreiden: een simpel iets besturen met de smartphone (bijv. een bal, een game element)
+- Duidelijke instructies toevoegen op de controller page
 
 ---
 
