@@ -51,6 +51,9 @@ Deze week heb ik de volledige basis neergezet: een werkende 1-op-1 verbinding tu
 - **QR Code:**  
   De desktop page toont een QR code met de controller URL. Zo kan je met je smartphone de URL scannen in plaats van overtypen.
 
+- **HTTPS:**  
+  Self-signed SSL certificaat aangemaakt via `openssl` (`localhost.key` + `localhost.crt`). De server draait nu op HTTPS in plaats van HTTP. 
+
 - **Branching:**  
   Ik werk met de GitHub Flow methode: feature branches per onderdeel, merge naar `main` voor een werkende MVP.
 
