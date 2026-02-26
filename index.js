@@ -1,6 +1,7 @@
 const express = require('express');
 const app = express();
 const fs = require('fs');
+const os = require('os');
 const options = {
     key: fs.readFileSync('./localhost.key'),
     cert: fs.readFileSync('./localhost.crt')
@@ -34,5 +35,13 @@ io.on('connection', socket => {
 });
 
 server.listen(port, () => {
+    const networkInterfaces = os.networkInterfaces();
+    for (const interfaceName in networkInterfaces) {
+        for (const iface of networkInterfaces[interfaceName]) {
+            if (iface.family === 'IPv4' && !iface.internal) {
+                console.log(`https://${iface.address}:${port}`);
+            }
+        }
+    }
     console.log(`App listening on https://localhost:${port}`);
 });
