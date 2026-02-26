@@ -1,5 +1,29 @@
-# WebRTC Media Remote
-**Bedien je desktop media met je smartphone.**
+# WebRTC Maze Runner
+**Bestuur een balletje door een doolhof met je smartphone.**
+
+---
+
+## 🎮 Het Concept: Maze Runner
+
+### Het Doel
+Jij bent een **groen balletje**. Verzamel alle witte muntjes in het doolhof.
+
+### De Vijand
+Een **rood balletje** (de "Ghost") beweegt automatisch door het doolhof. Als hij je raakt, ben je af.
+
+### De Besturing
+Je smartphone is de controller. Je bestuurt het balletje met 4 pijltjes op je telefoon, verbonden via een WebRTC data channel.
+
+### Bonusfeatures (extra punten)
+
+- **Kantelen (Gyroscoop):**  
+  In plaats van knoppen gebruik je de gyroscoop. Kantel je telefoon naar links → het balletje rolt naar links. Dit voelt natuurlijk voor een doolhof.
+
+- **Blazen voor een Boost (Audio):**  
+  Blaas hard in de microfoon van je smartphone → het balletje krijgt een tijdelijke snelheid-boost.
+
+- **Schudden (Accelerometer):**  
+  Schud hard met je telefoon → de vijand bevriest voor 3 seconden. Handig als je vastzit of de Ghost te dichtbij is.
 
 ---
 
