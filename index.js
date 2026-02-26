@@ -1,7 +1,11 @@
 const express = require('express');
 const app = express();
-const http = require('http');
-const server = http.createServer(app);
+const fs = require('fs');
+const options = {
+    key: fs.readFileSync('./localhost.key'),
+    cert: fs.readFileSync('./localhost.crt')
+};
+const server = require('https').createServer(options, app);
 const { Server } = require('socket.io');
 const io = new Server(server);
 const port = 3000;
@@ -30,5 +34,5 @@ io.on('connection', socket => {
 });
 
 server.listen(port, () => {
-    console.log(`App listening on http://localhost:${port}`);
+    console.log(`App listening on https://localhost:${port}`);
 });
