@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desktop - WebRTC Controller</title>
+    <style>
+        .cursor {
+            position: absolute;
+            width: 1rem;
+            height: 1rem;
+            margin-left: -.5rem;
+            margin-top: -.5rem;
+            background: red;
+            border-radius: 50%;
+            transition: top .1s, left .1s;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Desktop Controller</h1>
+    <p id="socketId">Connecting...</p>
+    <p id="url"></p>
+    <div id="cursor" class="cursor" style="display:none;"></div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const $socketId = document.getElementById('socketId');
+        const $url = document.getElementById('url');
+        const $cursor = document.getElementById('cursor');
+
+        let socket;
+
+        const init = () => {
+            socket = io.connect('/');
+
+            socket.on('connect', () => {
+                console.log(`Connected: ${socket.id}`);
+                $socketId.textContent = `Socket ID: ${socket.id}`;
+
+                const url = `${new URL(`/controller.html?id=${socket.id}`, window.location)}`;
+                $url.textContent = url;
+            });
+
+            socket.on('update', (data) => {
+                $cursor.style.display = 'block';
+                $cursor.style.left = `${data.x * window.innerWidth}px`;
+                $cursor.style.top = `${data.y * window.innerHeight}px`;
+            });
+        };
+
+        init();
+    </script>
+</body>
+
+</html>
