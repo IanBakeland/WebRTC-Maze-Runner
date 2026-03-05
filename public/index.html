@@ -473,6 +473,242 @@
             z-index: 100;
         }
 
+        /* ── Countdown overlay ────────────────────────────── */
+        .countdown-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: var(--clr-bg);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .4s;
+        }
+
+        .countdown-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .countdown-label {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1rem;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--clr-accent);
+            margin-bottom: 1.5rem;
+        }
+
+        .countdown-number {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 900;
+            font-size: clamp(6rem, 20vw, 12rem);
+            line-height: 1;
+            background: linear-gradient(135deg, var(--clr-accent), var(--clr-accent2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: countPop .5s ease-out;
+        }
+
+        @keyframes countPop {
+            0% {
+                transform: scale(1.6);
+                opacity: 0;
+            }
+
+            60% {
+                transform: scale(.95);
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .countdown-sub {
+            font-size: .95rem;
+            color: var(--clr-dim);
+            margin-top: 1rem;
+        }
+
+        .countdown-ring {
+            position: absolute;
+            width: 220px;
+            height: 220px;
+            border-radius: 50%;
+            border: 2px solid rgba(0, 229, 255, .1);
+        }
+
+        .countdown-ring svg {
+            position: absolute;
+            inset: -2px;
+            width: calc(100% + 4px);
+            height: calc(100% + 4px);
+            transform: rotate(-90deg);
+        }
+
+        .countdown-ring circle {
+            fill: none;
+            stroke: var(--clr-accent);
+            stroke-width: 2;
+            stroke-dasharray: 691;
+            stroke-dashoffset: 0;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 1s linear;
+        }
+
+        /* ── Game screen ─────────────────────────────────────── */
+        .game-screen {
+            position: fixed;
+            inset: 0;
+            z-index: 150;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: var(--clr-bg);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .5s;
+        }
+
+        .game-screen.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .game-playground {
+            position: absolute;
+            inset: 0;
+        }
+
+        .game-ball {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--clr-accent);
+            box-shadow: 0 0 16px var(--clr-accent), 0 0 40px rgba(0, 229, 255, .35);
+            transform: translate(-50%, -50%);
+            transition: none;
+            z-index: 10;
+        }
+
+        .game-ball-trail {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--clr-accent);
+            opacity: 0;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 9;
+        }
+
+        .game-hud {
+            position: absolute;
+            top: 1.5rem;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            z-index: 20;
+        }
+
+        .game-hud-label {
+            font-family: 'Orbitron', sans-serif;
+            font-size: .75rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--clr-accent);
+        }
+
+        .game-hud-pill {
+            padding: .3rem .8rem;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, .04);
+            border: 1px solid rgba(255, 255, 255, .06);
+            font-size: .75rem;
+            color: var(--clr-dim);
+            backdrop-filter: blur(6px);
+        }
+
+        /* ── Disconnect overlay ────────────────────────────── */
+        .disconnect-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 300;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(10, 10, 18, .92);
+            backdrop-filter: blur(12px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .4s;
+        }
+
+        .disconnect-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .disconnect-icon {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: rgba(255, 82, 82, .1);
+            border: 2px solid rgba(255, 82, 82, .3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+            animation: fadeUp .5s ease-out both;
+        }
+
+        .disconnect-icon svg {
+            width: 32px;
+            height: 32px;
+            stroke: #ff5252;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+        }
+
+        .disconnect-title {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 1.3rem;
+            color: #ff5252;
+            margin-bottom: .6rem;
+            animation: fadeUp .5s .05s ease-out both;
+        }
+
+        .disconnect-msg {
+            font-size: .92rem;
+            color: var(--clr-dim);
+            margin-bottom: 2rem;
+            text-align: center;
+            max-width: 320px;
+            animation: fadeUp .5s .1s ease-out both;
+        }
+
+        .disconnect-timer {
+            font-family: 'Orbitron', sans-serif;
+            font-size: .8rem;
+            color: var(--clr-dim);
+            letter-spacing: 1px;
+            animation: fadeUp .5s .15s ease-out both;
+        }
+
         /* ── Responsive ──────────────────────────────────────── */
         @media (max-width: 768px) {
             .main-grid {
@@ -601,6 +837,55 @@
         </footer>
     </div>
 
+    <!-- Countdown overlay -->
+    <div class="countdown-overlay" id="countdownOverlay">
+        <div class="countdown-ring">
+            <svg viewBox="0 0 220 220">
+                <circle cx="110" cy="110" r="109" id="countdownCircle" />
+            </svg>
+        </div>
+        <div class="countdown-label">Maak je klaar</div>
+        <div class="countdown-number" id="countdownNumber">3</div>
+        <div class="countdown-sub">Het doolhof wordt geladen…</div>
+    </div>
+
+    <!-- Game screen -->
+    <div class="game-screen" id="gameScreen">
+        <div class="maze-bg">
+            <svg viewBox="0 0 800 600" preserveAspectRatio="none">
+                <defs>
+                    <pattern id="maze2" x="0" y="0" width="60" height="60" patternUnits="userSpaceOnUse">
+                        <path d="M0 0h60v60H0z" fill="none" stroke="currentColor" stroke-width=".5" />
+                        <path d="M0 20h20v20H0M40 0v20h20M20 40h20v20" fill="none" stroke="currentColor"
+                            stroke-width=".5" />
+                    </pattern>
+                </defs>
+                <rect width="100%" height="100%" fill="url(#maze2)" />
+            </svg>
+        </div>
+        <div class="game-hud">
+            <span class="game-hud-label">Maze Runner</span>
+            <span class="game-hud-pill" id="tiltDebug">Tilt: 0° / 0°</span>
+        </div>
+        <div class="game-playground" id="gamePlayground">
+            <div class="game-ball" id="gameBall"></div>
+        </div>
+    </div>
+
+    <!-- Disconnect overlay -->
+    <div class="disconnect-overlay" id="disconnectOverlay">
+        <div class="disconnect-icon">
+            <svg viewBox="0 0 24 24">
+                <path d="M18.36 5.64a9 9 0 11-12.73 0" />
+                <line x1="12" y1="2" x2="12" y2="12" />
+            </svg>
+        </div>
+        <div class="disconnect-title">Verbinding verbroken</div>
+        <div class="disconnect-msg">De controller is losgekoppeld. Je keert automatisch terug naar het startscherm.
+        </div>
+        <div class="disconnect-timer" id="disconnectTimer">Terug in 4s…</div>
+    </div>
+
     <!-- Hidden game cursor -->
     <div id="cursor" class="cursor" style="display:none;"></div>
 
@@ -688,6 +973,14 @@
                 socket.emit('peerIce', peerId, e.candidate);
             };
 
+            peerConnection.onconnectionstatechange = () => {
+                const state = peerConnection.connectionState;
+                console.log('Connection state:', state);
+                if (state === 'disconnected' || state === 'failed' || state === 'closed') {
+                    handleDisconnect();
+                }
+            };
+
             peerConnection.ondatachannel = (e) => {
                 console.log('Data channel received:', e.channel.label);
                 const channel = e.channel;
@@ -698,11 +991,21 @@
                         $cursor.style.left = `${message.x * window.innerWidth}px`;
                         $cursor.style.top = `${message.y * window.innerHeight}px`;
                     }
+                    if (message.type === 'tilt') {
+                        handleTilt(message.beta, message.gamma);
+                    }
+                    if (message.type === 'countdown-ready') {
+                        startCountdown(channel);
+                    }
                 };
                 channel.onopen = () => {
                     console.log('Data channel open!');
                     $status.textContent = 'Controller verbonden!';
                     $statusDot.classList.add('connected');
+                    window._dataChannel = channel;
+                    // Tell the controller we're connected; it may show permission screen first
+                    channel.send(JSON.stringify({ type: 'countdown-start' }));
+                    $status.textContent = 'Wachten op controller…';
                 };
             };
 
@@ -710,6 +1013,129 @@
             const answer = await peerConnection.createAnswer();
             await peerConnection.setLocalDescription(answer);
             socket.emit('peerAnswer', peerId, answer);
+        };
+
+        // ── Ball physics ──────────────────────────────────────
+        const ballState = { x: 0, y: 0, vx: 0, vy: 0 };
+        let ballInitialized = false;
+
+        const initBall = () => {
+            const pg = document.getElementById('gamePlayground');
+            if (!pg) return;
+            ballState.x = pg.clientWidth / 2;
+            ballState.y = pg.clientHeight / 2;
+            ballState.vx = 0;
+            ballState.vy = 0;
+            ballInitialized = true;
+            updateBallPosition();
+        };
+
+        const updateBallPosition = () => {
+            const ball = document.getElementById('gameBall');
+            if (!ball) return;
+            ball.style.left = ballState.x + 'px';
+            ball.style.top = ballState.y + 'px';
+        };
+
+        const handleTilt = (beta, gamma) => {
+            // beta = front/back tilt (-180..180), gamma = left/right (-90..90)
+            const pg = document.getElementById('gamePlayground');
+            if (!pg) return;
+
+            if (!ballInitialized) initBall();
+
+            // Update debug HUD
+            const dbg = document.getElementById('tiltDebug');
+            if (dbg) dbg.textContent = `Tilt: ${Math.round(beta)}° / ${Math.round(gamma)}°`;
+
+            // Physics: tilt -> acceleration
+            const sensitivity = 0.4;
+            const friction = 0.92;
+            const maxSpeed = 12;
+
+            // gamma controls X (left/right), beta controls Y (forward/back)
+            const ax = gamma * sensitivity;
+            const ay = (beta - 30) * sensitivity; // offset: phone held at ~30° = neutral
+
+            ballState.vx = Math.max(-maxSpeed, Math.min(maxSpeed, (ballState.vx + ax) * friction));
+            ballState.vy = Math.max(-maxSpeed, Math.min(maxSpeed, (ballState.vy + ay) * friction));
+
+            ballState.x += ballState.vx;
+            ballState.y += ballState.vy;
+
+            // Clamp to playground bounds
+            const pad = 12;
+            ballState.x = Math.max(pad, Math.min(pg.clientWidth - pad, ballState.x));
+            ballState.y = Math.max(pad, Math.min(pg.clientHeight - pad, ballState.y));
+
+            updateBallPosition();
+        };
+
+        const handleDisconnect = () => {
+            console.log('Controller disconnected!');
+            const overlay = document.getElementById('disconnectOverlay');
+            const timerEl = document.getElementById('disconnectTimer');
+            overlay.classList.add('active');
+
+            let sec = 4;
+            timerEl.textContent = `Terug in ${sec}s…`;
+            const iv = setInterval(() => {
+                sec--;
+                if (sec > 0) {
+                    timerEl.textContent = `Terug in ${sec}s…`;
+                } else {
+                    clearInterval(iv);
+                    // Reset everything
+                    overlay.classList.remove('active');
+                    document.getElementById('countdownOverlay').classList.remove('active');
+                    document.getElementById('gameScreen').classList.remove('active');
+                    $cursor.style.display = 'none';
+                    $statusDot.classList.remove('connected');
+                    $status.textContent = 'Wachten op controller…';
+                    if (peerConnection) {
+                        peerConnection.close();
+                        peerConnection = null;
+                    }
+                    window._dataChannel = null;
+                    ballInitialized = false;
+                }
+            }, 1000);
+        };
+
+        const startCountdown = (channel) => {
+            const overlay = document.getElementById('countdownOverlay');
+            const numEl = document.getElementById('countdownNumber');
+            const circle = document.getElementById('countdownCircle');
+            const circumference = 2 * Math.PI * 109; // ~685
+
+            overlay.classList.add('active');
+            let count = 3;
+            numEl.textContent = count;
+            circle.style.strokeDasharray = circumference;
+            circle.style.strokeDashoffset = '0';
+
+            const tick = () => {
+                count--;
+                if (count > 0) {
+                    numEl.style.animation = 'none';
+                    void numEl.offsetWidth; // reflow
+                    numEl.style.animation = 'countPop .5s ease-out';
+                    numEl.textContent = count;
+                    circle.style.strokeDashoffset = String(circumference * (1 - count / 3));
+                    setTimeout(tick, 1000);
+                } else {
+                    numEl.style.animation = 'none';
+                    void numEl.offsetWidth;
+                    numEl.style.animation = 'countPop .5s ease-out';
+                    numEl.textContent = 'GO!';
+                    circle.style.strokeDashoffset = String(circumference);
+                    setTimeout(() => {
+                        overlay.classList.remove('active');
+                        document.getElementById('gameScreen').classList.add('active');
+                    }, 800);
+                }
+            };
+            setTimeout(tick, 1000);
         };
 
         init();
