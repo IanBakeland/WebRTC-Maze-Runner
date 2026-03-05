@@ -1,0 +1,478 @@
+*,
+*::before,
+*::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --clr-bg: #0a0a12;
+    --clr-surface: #12121f;
+    --clr-accent: #00e5ff;
+    --clr-accent2: #7c4dff;
+    --clr-text: #e0e0e8;
+    --clr-dim: #6b6b80;
+}
+
+html,
+body {
+    height: 100%;
+    overflow: hidden;
+    touch-action: none;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background: var(--clr-bg);
+    color: var(--clr-text);
+}
+
+/* ── Maze background ─────────────────────────────────── */
+.maze-bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+}
+
+.maze-bg svg {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    opacity: .06;
+}
+
+.maze-bg::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 0%, rgba(0, 229, 255, .08) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 100%, rgba(124, 77, 255, .06) 0%, transparent 50%);
+}
+
+/* ── Particles ───────────────────────────────────────── */
+.particle {
+    position: fixed;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 0;
+    animation: float linear infinite;
+}
+
+@keyframes float {
+    0% {
+        transform: translateY(0) scale(1);
+        opacity: 0;
+    }
+
+    10% {
+        opacity: 1;
+    }
+
+    90% {
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(-100vh) scale(.3);
+        opacity: 0;
+    }
+}
+
+@keyframes fadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ── Screens ─────────────────────────────────────────── */
+.screen {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .4s;
+}
+
+.screen.active {
+    opacity: 1;
+    pointer-events: all;
+}
+
+/* ── Connecting screen ───────────────────────────────── */
+#connectScreen .logo {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: 1.5rem;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    background: linear-gradient(135deg, var(--clr-accent), var(--clr-accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 2.5rem;
+    animation: fadeUp .6s ease-out both;
+}
+
+.connect-spinner {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: 3px solid rgba(255, 255, 255, .06);
+    border-top-color: var(--clr-accent);
+    animation: spin 1s linear infinite, fadeUp .6s .1s ease-out both;
+    margin-bottom: 1.5rem;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+#connectScreen .connect-text {
+    font-size: .95rem;
+    color: var(--clr-dim);
+    animation: fadeUp .6s .2s ease-out both;
+}
+
+#connectScreen .connect-sub {
+    font-size: .78rem;
+    color: rgba(107, 107, 128, .6);
+    margin-top: .5rem;
+    animation: fadeUp .6s .3s ease-out both;
+}
+
+.status-pill {
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .35rem .8rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .04);
+    border: 1px solid rgba(255, 255, 255, .06);
+    font-size: .7rem;
+    color: var(--clr-dim);
+    backdrop-filter: blur(6px);
+    z-index: 50;
+}
+
+.status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #ff9100;
+    animation: pulse-dot 1.6s ease-in-out infinite;
+}
+
+.status-dot.connected {
+    background: #00e676;
+    animation: none;
+}
+
+@keyframes pulse-dot {
+
+    0%,
+    100% {
+        opacity: .4;
+        transform: scale(.8);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1.2);
+    }
+}
+
+/* ── Countdown screen ────────────────────────────────── */
+.countdown-ring {
+    position: absolute;
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    border: 2px solid rgba(0, 229, 255, .1);
+}
+
+.countdown-ring svg {
+    position: absolute;
+    inset: -2px;
+    width: calc(100% + 4px);
+    height: calc(100% + 4px);
+    transform: rotate(-90deg);
+}
+
+.countdown-ring circle {
+    fill: none;
+    stroke: var(--clr-accent);
+    stroke-width: 2;
+    stroke-dasharray: 565;
+    stroke-dashoffset: 0;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1s linear;
+}
+
+.countdown-label {
+    font-family: 'Orbitron', sans-serif;
+    font-size: .85rem;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--clr-accent);
+    margin-bottom: 1rem;
+}
+
+.countdown-number {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: clamp(5rem, 18vw, 9rem);
+    line-height: 1;
+    background: linear-gradient(135deg, var(--clr-accent), var(--clr-accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: countPop .5s ease-out;
+}
+
+@keyframes countPop {
+    0% {
+        transform: scale(1.6);
+        opacity: 0;
+    }
+
+    60% {
+        transform: scale(.95);
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.countdown-sub {
+    font-size: .85rem;
+    color: var(--clr-dim);
+    margin-top: 1rem;
+}
+
+/* ── Controls screen ─────────────────────────────────── */
+#controlsScreen {
+    z-index: 2;
+}
+
+.controls-header {
+    margin-bottom: 2rem;
+    animation: fadeUp .5s ease-out both;
+}
+
+.controls-header h2 {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: 1.3rem;
+    background: linear-gradient(135deg, var(--clr-accent), var(--clr-accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: .4rem;
+}
+
+.controls-header p {
+    color: var(--clr-dim);
+    font-size: .85rem;
+}
+
+.tilt-visual {
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    border: 2px solid rgba(0, 229, 255, .15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    margin-bottom: 2rem;
+    animation: fadeUp .5s .1s ease-out both;
+}
+
+.tilt-visual::before {
+    content: '';
+    position: absolute;
+    inset: 8px;
+    border-radius: 50%;
+    border: 1px dashed rgba(0, 229, 255, .1);
+}
+
+.tilt-dot {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--clr-accent);
+    box-shadow: 0 0 16px var(--clr-accent), 0 0 40px rgba(0, 229, 255, .3);
+    transition: transform .15s;
+}
+
+.tilt-hint {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .7rem 1.2rem;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, .04);
+    border: 1px solid rgba(255, 255, 255, .06);
+    font-size: .82rem;
+    color: var(--clr-dim);
+    animation: fadeUp .5s .2s ease-out both;
+}
+
+.tilt-hint svg {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    stroke: var(--clr-accent);
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+}
+
+/* ── Permission screen ────────────────────────────────── */
+.perm-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: rgba(0, 229, 255, .08);
+    border: 2px solid rgba(0, 229, 255, .15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    animation: fadeUp .5s ease-out both;
+}
+
+.perm-icon svg {
+    width: 36px;
+    height: 36px;
+    stroke: var(--clr-accent);
+    fill: none;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.perm-title {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--clr-text);
+    margin-bottom: .5rem;
+    animation: fadeUp .5s .05s ease-out both;
+}
+
+.perm-msg {
+    font-size: .85rem;
+    color: var(--clr-dim);
+    margin-bottom: 2rem;
+    text-align: center;
+    max-width: 280px;
+    line-height: 1.6;
+    animation: fadeUp .5s .1s ease-out both;
+}
+
+.perm-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: .6rem;
+    padding: .85rem 2rem;
+    border: none;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--clr-accent), var(--clr-accent2));
+    color: var(--clr-bg);
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    font-size: .85rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    box-shadow: 0 0 30px rgba(0, 229, 255, .25), 0 8px 20px rgba(0, 0, 0, .3);
+    transition: transform .15s, box-shadow .15s;
+    animation: fadeUp .5s .15s ease-out both;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.perm-btn:active {
+    transform: scale(.96);
+    box-shadow: 0 0 20px rgba(0, 229, 255, .2), 0 4px 12px rgba(0, 0, 0, .3);
+}
+
+.perm-btn svg {
+    width: 18px;
+    height: 18px;
+    stroke: var(--clr-bg);
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+}
+
+/* ── Disconnect screen ────────────────────────────────── */
+.disconnect-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: rgba(255, 82, 82, .1);
+    border: 2px solid rgba(255, 82, 82, .3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    animation: fadeUp .5s ease-out both;
+}
+
+.disconnect-icon svg {
+    width: 28px;
+    height: 28px;
+    stroke: #ff5252;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+}
+
+.disconnect-title {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #ff5252;
+    margin-bottom: .5rem;
+    animation: fadeUp .5s .05s ease-out both;
+}
+
+.disconnect-msg {
+    font-size: .85rem;
+    color: var(--clr-dim);
+    margin-bottom: 1.5rem;
+    text-align: center;
+    max-width: 280px;
+    animation: fadeUp .5s .1s ease-out both;
+}
+
+.disconnect-timer {
+    font-family: 'Orbitron', sans-serif;
+    font-size: .75rem;
+    color: var(--clr-dim);
+    letter-spacing: 1px;
+    animation: fadeUp .5s .15s ease-out both;
+}
