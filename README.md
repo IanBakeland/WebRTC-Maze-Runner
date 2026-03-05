@@ -23,7 +23,7 @@ Je smartphone is de controller. Kantel je telefoon naar links → het balletje r
 
 ## 📅 Planning & Voortgang
 
-> **Startdatum:** 19 februari 2025 · **Deadline:** 22 maart 2025 · **Vandaag:** 5 maart 2025
+> **Startdatum:** 19 februari 2025 · **Deadline:** 22 maart 2025
 
 ### Overzicht per MVP
 
