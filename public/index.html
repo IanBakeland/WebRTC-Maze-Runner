@@ -22,18 +22,25 @@
 <body>
     <h1>Desktop Controller</h1>
     <p id="socketId">Connecting...</p>
-    <p id="url"></p>
+    <p id="status">Waiting for controller...</p>
     <div id="qr"></div>
+    <p><a id="controllerLink" href="#" target="_blank"></a></p>
     <div id="cursor" class="cursor" style="display:none;"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const $socketId = document.getElementById('socketId');
-        const $url = document.getElementById('url');
+        const $status = document.getElementById('status');
         const $cursor = document.getElementById('cursor');
+        const $controllerLink = document.getElementById('controllerLink');
 
         let socket;
+        let peerConnection;
+
+        const servers = {
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        };
 
         const init = () => {
             socket = io.connect('/');
@@ -43,7 +50,8 @@
                 $socketId.textContent = `Socket ID: ${socket.id}`;
 
                 const url = `${new URL(`/controller.html?id=${socket.id}`, window.location)}`;
-                $url.textContent = url;
+                $controllerLink.href = url;
+                $controllerLink.textContent = url;
 
                 const typeNumber = 4;
                 const errorCorrectionLevel = 'L';
@@ -53,11 +61,54 @@
                 document.getElementById('qr').innerHTML = qr.createImgTag(4);
             });
 
-            socket.on('update', (data) => {
-                $cursor.style.display = 'block';
-                $cursor.style.left = `${data.x * window.innerWidth}px`;
-                $cursor.style.top = `${data.y * window.innerHeight}px`;
+            socket.on('peerOffer', async (myId, offer, peerId) => {
+                console.log(`Received peerOffer from ${peerId}`);
+                await answerPeerOffer(offer, peerId);
             });
+
+            socket.on('peerAnswer', async (myId, answer, peerId) => {
+                console.log(`Received peerAnswer from ${peerId}`);
+                if (peerConnection) {
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+                }
+            });
+
+            socket.on('peerIce', async (myId, candidate, peerId) => {
+                if (!candidate || !peerConnection) return;
+                console.log(`Received peerIce from ${peerId}`);
+                await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+            });
+        };
+
+        const answerPeerOffer = async (offer, peerId) => {
+            if (peerConnection) peerConnection.close();
+            peerConnection = new RTCPeerConnection(servers);
+
+            peerConnection.onicecandidate = (e) => {
+                socket.emit('peerIce', peerId, e.candidate);
+            };
+
+            peerConnection.ondatachannel = (e) => {
+                console.log('Data channel received:', e.channel.label);
+                const channel = e.channel;
+                channel.onmessage = (event) => {
+                    const message = JSON.parse(event.data);
+                    if (message.type === 'cursor') {
+                        $cursor.style.display = 'block';
+                        $cursor.style.left = `${message.x * window.innerWidth}px`;
+                        $cursor.style.top = `${message.y * window.innerHeight}px`;
+                    }
+                };
+                channel.onopen = () => {
+                    console.log('Data channel open!');
+                    $status.textContent = 'Controller connected via WebRTC!';
+                };
+            };
+
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+            socket.emit('peerAnswer', peerId, answer);
         };
 
         init();
