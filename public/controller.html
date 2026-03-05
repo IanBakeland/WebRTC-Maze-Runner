@@ -11,13 +11,13 @@
     <h1>Controller</h1>
     <p id="status">Connecting...</p>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/simple-peer/9.11.1/simplepeer.min.js"
-        integrity="sha512-0f7Ahsuvr+/P2btTY4mZIw9Vl23lS6LY/Y7amdkmUg2dqsUF+cTe4QjWvj/NIBHJoGksOiqndKQuI9yzn2hB0g=="
-        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        let socket, peer, targetSocketId;
-        let dataChannelReady = false;
+        let socket, peerConnection, dataChannel, targetSocketId;
+
+        const servers = {
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        };
 
         const getUrlParameter = name => {
             name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
@@ -38,17 +38,20 @@
             socket.on('connect', () => {
                 console.log(`Connected: ${socket.id}`);
                 document.getElementById('status').textContent = `Connected - calling ${targetSocketId}...`;
-                // Initiator: start de WebRTC verbinding
-                createPeer(true, targetSocketId);
+                callPeer(targetSocketId);
             });
 
-            // Signalling: ontvang signal van desktop via socket
-            socket.on('signal', (myId, signal, peerId) => {
-                console.log(`Received signal from ${peerId}`);
-                peer.signal(signal);
+            socket.on('peerAnswer', async (myId, answer, peerId) => {
+                console.log(`Received peerAnswer from ${peerId}`);
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
             });
 
-            // Stuur cursor data via data channel (niet via socket!)
+            socket.on('peerIce', async (myId, candidate, peerId) => {
+                if (!candidate) return;
+                console.log(`Received peerIce from ${peerId}`);
+                await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+            });
+
             window.addEventListener('mousemove', e => {
                 sendCursorData(e.clientX / window.innerWidth, e.clientY / window.innerHeight);
             });
@@ -62,27 +65,28 @@
             }, { passive: false });
         };
 
-        const createPeer = (initiator, peerId) => {
-            peer = new SimplePeer({ initiator, config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] } });
+        const callPeer = async (peerId) => {
+            if (peerConnection) peerConnection.close();
+            peerConnection = new RTCPeerConnection(servers);
 
-            peer.on('signal', data => {
-                socket.emit('signal', peerId, data);
-            });
-
-            peer.on('connect', () => {
-                console.log('WebRTC data channel connected!');
-                dataChannelReady = true;
+            dataChannel = peerConnection.createDataChannel('control');
+            dataChannel.onopen = () => {
+                console.log('Data channel open!');
                 document.getElementById('status').textContent = `Controlling ${peerId} via WebRTC!`;
-            });
+            };
 
-            peer.on('error', (err) => {
-                console.error('Peer error:', err);
-            });
+            peerConnection.onicecandidate = (e) => {
+                socket.emit('peerIce', peerId, e.candidate);
+            };
+
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+            socket.emit('peerOffer', peerId, offer);
         };
 
         const sendCursorData = (x, y) => {
-            if (!dataChannelReady) return;
-            peer.send(JSON.stringify({ type: 'cursor', x, y }));
+            if (!dataChannel || dataChannel.readyState !== 'open') return;
+            dataChannel.send(JSON.stringify({ type: 'cursor', x, y }));
         };
 
         init();
