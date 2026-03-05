@@ -11,9 +11,13 @@
     <h1>Controller</h1>
     <p id="status">Connecting...</p>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/simple-peer/9.11.1/simplepeer.min.js"
+        integrity="sha512-0f7Ahsuvr+/P2btTY4mZIw9Vl23lS6LY/Y7amdkmUg2dqsUF+cTe4QjWvj/NIBHJoGksOiqndKQuI9yzn2hB0g=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        let socket, targetSocketId;
+        let socket, peer, targetSocketId;
+        let dataChannelReady = false;
 
         const getUrlParameter = name => {
             name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
@@ -33,22 +37,52 @@
 
             socket.on('connect', () => {
                 console.log(`Connected: ${socket.id}`);
-                document.getElementById('status').textContent = `Connected - controlling ${targetSocketId}`;
+                document.getElementById('status').textContent = `Connected - calling ${targetSocketId}...`;
+                // Initiator: start de WebRTC verbinding
+                createPeer(true, targetSocketId);
             });
 
+            // Signalling: ontvang signal van desktop via socket
+            socket.on('signal', (myId, signal, peerId) => {
+                console.log(`Received signal from ${peerId}`);
+                peer.signal(signal);
+            });
+
+            // Stuur cursor data via data channel (niet via socket!)
             window.addEventListener('mousemove', e => {
-                socket.emit('update', targetSocketId, {
-                    x: e.clientX / window.innerWidth,
-                    y: e.clientY / window.innerHeight
-                });
+                sendCursorData(e.clientX / window.innerWidth, e.clientY / window.innerHeight);
             });
 
             window.addEventListener('touchmove', e => {
-                socket.emit('update', targetSocketId, {
-                    x: e.touches[0].clientX / window.innerWidth,
-                    y: e.touches[0].clientY / window.innerHeight
-                });
+                e.preventDefault();
+                sendCursorData(
+                    e.touches[0].clientX / window.innerWidth,
+                    e.touches[0].clientY / window.innerHeight
+                );
+            }, { passive: false });
+        };
+
+        const createPeer = (initiator, peerId) => {
+            peer = new SimplePeer({ initiator });
+
+            peer.on('signal', data => {
+                socket.emit('signal', peerId, data);
             });
+
+            peer.on('connect', () => {
+                console.log('WebRTC data channel connected!');
+                dataChannelReady = true;
+                document.getElementById('status').textContent = `Controlling ${peerId} via WebRTC!`;
+            });
+
+            peer.on('error', (err) => {
+                console.error('Peer error:', err);
+            });
+        };
+
+        const sendCursorData = (x, y) => {
+            if (!dataChannelReady) return;
+            peer.send(JSON.stringify({ type: 'cursor', x, y }));
         };
 
         init();

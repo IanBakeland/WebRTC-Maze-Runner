@@ -22,18 +22,22 @@
 <body>
     <h1>Desktop Controller</h1>
     <p id="socketId">Connecting...</p>
-    <p id="url"></p>
+    <p id="status">Waiting for controller...</p>
     <div id="qr"></div>
     <div id="cursor" class="cursor" style="display:none;"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/simple-peer/9.11.1/simplepeer.min.js"
+        integrity="sha512-0f7Ahsuvr+/P2btTY4mZIw9Vl23lS6LY/Y7amdkmUg2dqsUF+cTe4QjWvj/NIBHJoGksOiqndKQuI9yzn2hB0g=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const $socketId = document.getElementById('socketId');
-        const $url = document.getElementById('url');
+        const $status = document.getElementById('status');
         const $cursor = document.getElementById('cursor');
 
         let socket;
+        let peer;
 
         const init = () => {
             socket = io.connect('/');
@@ -43,7 +47,6 @@
                 $socketId.textContent = `Socket ID: ${socket.id}`;
 
                 const url = `${new URL(`/controller.html?id=${socket.id}`, window.location)}`;
-                $url.textContent = url;
 
                 const typeNumber = 4;
                 const errorCorrectionLevel = 'L';
@@ -53,10 +56,41 @@
                 document.getElementById('qr').innerHTML = qr.createImgTag(4);
             });
 
-            socket.on('update', (data) => {
-                $cursor.style.display = 'block';
-                $cursor.style.left = `${data.x * window.innerWidth}px`;
-                $cursor.style.top = `${data.y * window.innerHeight}px`;
+            // Signalling: ontvang signal van controller via socket
+            socket.on('signal', (myId, signal, peerId) => {
+                console.log(`Received signal from ${peerId}`);
+                if (signal.type === 'offer') {
+                    // Controller stuurt een offer, wij beantwoorden
+                    createPeer(false, peerId);
+                }
+                peer.signal(signal);
+            });
+        };
+
+        const createPeer = (initiator, peerId) => {
+            peer = new SimplePeer({ initiator });
+
+            peer.on('signal', data => {
+                socket.emit('signal', peerId, data);
+            });
+
+            // Data channel: ontvang berichten van controller
+            peer.on('data', data => {
+                const message = JSON.parse(data);
+                if (message.type === 'cursor') {
+                    $cursor.style.display = 'block';
+                    $cursor.style.left = `${message.x * window.innerWidth}px`;
+                    $cursor.style.top = `${message.y * window.innerHeight}px`;
+                }
+            });
+
+            peer.on('connect', () => {
+                console.log('WebRTC data channel connected!');
+                $status.textContent = 'Controller connected via WebRTC!';
+            });
+
+            peer.on('error', (err) => {
+                console.error('Peer error:', err);
             });
         };
 
