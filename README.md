@@ -16,15 +16,25 @@ Je smartphone is de controller. Kantel je telefoon naar links → het balletje r
 
 ### Bonusfeatures (extra punten)
 
-- **Kantelen (Gyroscoop):**  
-  In plaats van knoppen gebruik je de gyroscoop. Kantel je telefoon naar links → het balletje rolt naar links. Dit voelt natuurlijk voor een doolhof.
-
 - **Blazen voor een Boost (Audio):**  
   Blaas hard in de microfoon van je smartphone → De ghosts bevriezen voor 2 seconden. Dit heeft natuurlijk een cooldown. 
 
 ---
 
-## 📖 Development Diary
+## 📅 Planning & Voortgang
+
+| Week | Fase                           | Status    | Beschrijving                                                                                                                                                                                                                                                                                                                                                                                                        | Branch                  | Oplevering                                                                    |
+| ---- | ------------------------------ | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- | ----------------------------------------------------------------------------- |
+| 1    | **MVP 1** — Signaling & Setup  | ✅ Klaar   | Express + Socket.io signaling server opzetten. Desktop page met QR code die de controller URL bevat. Controller page die via querystring de desktop vindt. Self-signed HTTPS certificaat. Basale 1-op-1 communicatie via websockets.                                                                                                                                                                                | `main`                  | Werkende signaling flow: telefoon scant QR → verbinding met desktop           |
+| 2    | **MVP 2** — WebRTC & Interface | ✅ Klaar   | Socket.io vervangen door WebRTC Data Channel voor alle besturing. Signaling layer behouden voor offer/answer/ICE. Futuristische UI gebouwd voor desktop (landing page, instructies, QR) en controller (meerdere schermen). Countdown timer bij verbinding. Gyroscoop-besturing via `DeviceOrientationEvent`. iOS permissie-knop. Disconnect-afhandeling met overlay. Tijdelijk game-scherm met beweegbaar balletje. | `feature/mazerunner-ui` | Telefoon kantelen → balletje beweegt op desktop via peer-to-peer data channel |
+| 3    | **MVP 3** — Maze Game          | 🔲 Gepland | Canvas-based doolhof tekenen (grid met muren en paden). Groen balletje (speler) bestuurd via gyroscoop met wall-collision. Witte muntjes verzamelen met score-teller. Rode ghost die automatisch beweegt door het doolhof. Game over bij ghost-hit, win bij alle muntjes. Game flow: countdown → spel → eindscherm.                                                                                                 | `feature/maze-game`     | Volledig speelbaar doolhof-spel bestuurd met smartphone gyroscoop             |
+| 4    | **MVP 4** — Bonus & Polish     | 🔲 Gepland | Microfoon-input via `getUserMedia` + Web Audio API. Blazen detecteren → ghost freeze (2s) via data channel met cooldown. UI/UX afwerking: game over/win scherm, HUD, visuele feedback. Testen op iPhone + Android. README, AI reflectie en documentatie afronden. Zip klaarmaken.                                                                                                                                   | `feature/audio-freeze`  | Bonuspunten: audio channel integratie + gepolijste eindversie                 |
+
+
+
+---
+
+## Development Diary
 
 ### MVP 1: Socket.io Signaling & 1-op-1 Controle
 
@@ -336,17 +346,30 @@ Deze week heb ik de applicatie uitgebreid van een Socket.io-gestuurde verbinding
   </details>
 
 #### Plan voor volgende week (MVP 3)
-- De echte doolhof-gameplay bouwen (muren, munten, vijand)
-- Collision detection implementeren
-- Bonusfeatures: blaas-boost (audio), schud-freeze (accelerometer)
+Zie de [Week 3 planning](#week-3--mvp-3-het-doolhof-spel) hierboven: doolhof bouwen op canvas, speler + muntjes + ghost met collision detection, score-systeem en game over flow.
+
+<details>
+<summary>🤖 AI Prompt — README schrijven voor week 2</summary>
+
+> **Mijn prompt:**  
+> *"Kan je de readme gaan aanpassen, voor week 2. Voeg volgende toe aan mijn Readme: WebRTC Data Channels voor de besturing, Desktop interface met uitleg, Controller interface (telefoon), Countdown timer bij verbinding, Disconnect-afhandeling, Tijdelijke game interface (desktop & telefoon), Gyroscoop-besturing getest, iOS permissie-knop voor gyroscoop, Bal bestuurbaar via gyroscoop. Ik heb gebruik gemaakt van volgende prompts en heb ook volgende antwoorden gekregen: ..."*
+
+**Copilot antwoordde:**  
+Omdat ik zelf niet goed ben in Markdown, heb ik Copilot gevraagd om de development diary voor week 2 te structureren. Ik gaf de punten die ik wilde behandelen en de AI-prompts die ik had gebruikt, en Copilot heeft dit omgezet naar een gestructureerde diary met:
+- Een beschrijving per onderdeel van wat ik heb gedaan en hoe het technisch werkt
+- Inklapbare `<details>` blokken met de exacte prompts die ik aan Gemini/Copilot had gesteld en hun antwoorden
+- Een logische volgorde van de werkzaamheden
+
+Ik heb de tekst doorgelezen en waar nodig bijgestuurd op correctheid.
+</details>
 
 ---
 
 ## 🤖 AI Reflectie
 
-In dit project maak ik gebruik van AI (Copilot) als mijn persoonlijke assistent en tutor. Hieronder lees je hoe ik AI precies inzet:
+In dit project maak ik gebruik van AI (Copilot en Gemini) als mijn persoonlijke assistent en tutor. Hieronder lees je hoe ik AI precies inzet, per week.
 
-### Waarvoor heb ik AI gebruikt?
+### Week 1 — Waarvoor heb ik AI gebruikt?
 
 - **Uitleg van concepten:**  
   De GitHub gids uit de les legt goed uit hoe je iets typt, maar soms begreep ik niet precies waarom bepaalde stappen nodig waren. Ik heb AI gevraagd om moeilijke termen zoals **"Signaling"** en het verschil tussen **"WebSockets"** en **"WebRTC"** in simpele woorden uit te leggen.
@@ -367,7 +390,7 @@ In dit project maak ik gebruik van AI (Copilot) als mijn persoonlijke assistent 
 
 ---
 
-### Kritische reflectie
+### Week 1 — Kritische reflectie
 
 #### Wat ging goed?
 - AI helpt mij om sneller door de stof te gaan die niet diep genoeg wordt uitgelegd in de standaard documentatie.
@@ -380,3 +403,63 @@ In dit project maak ik gebruik van AI (Copilot) als mijn persoonlijke assistent 
 #### Waar moet ik op letten?
 - Ik moet opletten dat ik niet blind code overneem. Bij de controller page heb ik bewust gevraagd wat er ontbrak aan de guide-code, zodat ik het verschil begrijp tussen wat uit de les komt en wat AI toevoegt.
 - Het is belangrijk om altijd te weten welke stukken van AI komen, zodat ik dit eerlijk kan verantwoorden.
+
+---
+
+### Week 2 — Waarvoor heb ik AI gebruikt?
+
+Tijdens de ontwikkeling van MVP 2 heb ik intensief gebruikgemaakt van generatieve AI (Gemini en Copilot) om de complexe WebRTC-handshake en de visuele game-interface te realiseren.
+
+- **Hulp bij Markdown (README):**  
+  Omdat ik zelf niet goed ben in Markdown, heb ik Copilot gevraagd om de development diary voor week 2 te schrijven en structureren. Ik gaf de punten die ik wilde behandelen en de AI-prompts die ik had gebruikt, en Copilot zette dit om naar een leesbare diary met inklapbare prompt-secties.
+
+- **Architectuur — Van Server naar Peer-to-Peer:**  
+  Gemini hielp me het conceptuele verschil te begrijpen tussen WebSockets (Signaling) en WebRTC (Data Transfer). Zie de prompts in de [MVP 2 diary](#mvp-2-webrtc-data-channels--game-interface).
+
+- **Signaling code toepassen:**  
+  Ik had de code uit de les maar wist niet hoe ik het in mijn project moest integreren. Gemini legde de flow uit (desktop = host, smartphone = controller via QR-code) en gaf een voorbeeld voor QR-code generatie.
+
+- **Visueel ontwerp & interface:**  
+  Copilot genereerde de volledige CSS voor het futuristische thema (desktop én controller) op basis van mijn korte beschrijving.
+
+- **Countdown timer & game flow:**  
+  Copilot maakte de countdown-overlay en het (lege) game-scherm, gesynchroniseerd via het data channel.
+
+- **Gyroscoop & iOS permissies:**  
+  Gemini hielp me de MDN `DeviceOrientationEvent` API toe te passen en het iOS-permissieprobleem op te lossen.
+
+- **Disconnect-afhandeling:**  
+  Gemini gaf drie methodes om verbindingsverlies te detecteren en een code-voorbeeld voor een error-overlay.
+
+---
+
+### Week 2 — Kritische reflectie
+
+#### 1. Architectuur: Van Server naar Peer-to-Peer
+
+- **Wat de AI deed:** Gemini hielp me het conceptuele verschil te begrijpen tussen WebSockets (Signaling) en WebRTC (Data Transfer).
+- **Mijn bijsturing:** Hoewel de AI een standaard WebRTC-voorbeeld gaf, heb ik de code uit de les handmatig geïntegreerd in de signaling server. Ik heb de AI-code aangepast zodat de `socket.id` van de desktop specifiek via een QR-code wordt doorgegeven, in plaats van een handmatige ID-invoer. Dit was cruciaal voor de gebruiksvriendelijkheid.
+
+#### 2. De "iOS Barrière" & UX
+
+- **Wat de AI deed:** De AI wees me op de `DeviceOrientationEvent.requestPermission()` API voor iOS en de noodzaak voor HTTPS.
+- **Mijn bijsturing:** De AI stelde voor om de permissie direct bij het laden van de pagina te vragen, maar uit eigen tests bleek dat dit door Safari werd geblokkeerd. Ik heb daarom zelf een "Start Game" flow ontworpen met een expliciet permissie-scherm op de controller. Hierdoor voldoe ik aan de "User Gesture" eis van Apple.
+
+#### 3. Visueel Ontwerp & Feedback
+
+- **Wat de AI deed:** Copilot genereerde de basis CSS voor het futuristische thema en de countdown-animatie.
+- **Mijn bijsturing:** De gegenereerde CSS was erg zwaar. Ik heb de code opgeschoond door onnodige animaties te verwijderen die de latency op mobiele apparaten negatief beïnvloedden. Ook heb ik de "tilt-dot" visualisatie op de controller zelf toegevoegd; de AI wilde alleen de data versturen, maar ik vond dat de gebruiker visuele feedback nodig had op de telefoon zelf om te zien of de sensoren werkten.
+
+#### 4. Foutafhandeling (Disconnects)
+
+- **Wat de AI deed:** Gemini leverde de logica voor `oniceconnectionstatechange`.
+- **Mijn bijsturing:** Ik heb deze logica uitgebreid zodat de desktop niet alleen een foutmelding geeft, maar ook direct de QR-code opnieuw genereert. Dit zorgt ervoor dat de game direct herstartbaar is zonder dat de gebruiker de browser op de desktop hoeft te verversen.
+
+#### 5. De Verschuiving van Ontwerper naar Regisseur
+
+- **Wat me opviel:** Een van de meest verrassende momenten was hoe Copilot, na slechts een korte beschrijving van mijn concept, een interface genereerde die direct de juiste "game-vibe" raakte. De keuze voor het Orbitron-font en het donkere kleurenschema met neon-accenten sloot naadloos aan bij wat ik in mijn hoofd had, zonder dat ik zelf uren in Figma heb gezeten.
+- **Mijn reflectie:** Het voelt ergens onwerkelijk en zelfs een beetje "raar" dat ik zelf zo weinig visueel heb ontworpen, terwijl het resultaat er zo professioneel uitziet. Dit dwong me om mijn rol te herdefinieren: ik was niet de tekenaar, maar de **art director**. Ik moest de output van de AI kritisch beoordelen, de bruikbaarheid testen (waren de knoppen op mobiel groot genoeg?) en de code opschonen waar deze te complex werd. Hoewel de AI het "tekenwerk" deed, bleef ik verantwoordelijk voor de functionele samenhang en de uiteindelijke gebruikerservaring.
+
+#### Conclusie
+
+AI was een enorme versneller voor de boilerplate code (zoals CSS-grids en WebRTC-listeners), maar mijn eigen inbreng was essentieel voor de user experience en het oplossen van apparaat-specifieke problemen (iOS permissies). 
