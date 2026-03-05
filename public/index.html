@@ -4,34 +4,634 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Desktop - WebRTC Controller</title>
+    <title>Maze Runner — WebRTC</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
     <style>
-        .cursor {
+        *,
+        *::before,
+        *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --clr-bg: #0a0a12;
+            --clr-surface: #12121f;
+            --clr-accent: #00e5ff;
+            --clr-accent2: #7c4dff;
+            --clr-text: #e0e0e8;
+            --clr-dim: #6b6b80;
+            --glow-accent: 0 0 30px rgba(0, 229, 255, .25);
+            --glow-accent2: 0 0 30px rgba(124, 77, 255, .25);
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--clr-bg);
+            color: var(--clr-text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ── Animated maze background ────────────────────────── */
+        .maze-bg {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .maze-bg svg {
             position: absolute;
+            width: 100%;
+            height: 100%;
+            opacity: .06;
+        }
+
+        .maze-bg::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at 50% 0%, rgba(0, 229, 255, .08) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 100%, rgba(124, 77, 255, .06) 0%, transparent 50%);
+        }
+
+        /* ── Particles ───────────────────────────────────────── */
+        .particle {
+            position: fixed;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 0;
+            animation: float linear infinite;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(0) scale(1);
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 1;
+            }
+
+            90% {
+                opacity: 1;
+            }
+
+            100% {
+                transform: translateY(-100vh) scale(.3);
+                opacity: 0;
+            }
+        }
+
+        /* ── Layout ──────────────────────────────────────────── */
+        .wrapper {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 3rem 2rem 4rem;
+        }
+
+        /* ── Nav / top bar ───────────────────────────────────── */
+        .topbar {
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 3rem;
+        }
+
+        .topbar .logo {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 900;
+            font-size: 1rem;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--clr-accent);
+        }
+
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+            padding: .4rem 1rem;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, .04);
+            border: 1px solid rgba(255, 255, 255, .06);
+            font-size: .78rem;
+            color: var(--clr-dim);
+            backdrop-filter: blur(6px);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ff9100;
+            animation: pulse-dot 1.6s ease-in-out infinite;
+        }
+
+        .status-dot.connected {
+            background: #00e676;
+            animation: none;
+        }
+
+        @keyframes pulse-dot {
+
+            0%,
+            100% {
+                opacity: .4;
+                transform: scale(.8);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1.2);
+            }
+        }
+
+        /* ── Hero ────────────────────────────────────────────── */
+        .hero {
+            text-align: center;
+            max-width: 720px;
+            margin-bottom: 3.5rem;
+            animation: fadeUp .8s ease-out both;
+        }
+
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .hero h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 900;
+            font-size: clamp(2.4rem, 5vw, 4rem);
+            line-height: 1.1;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--clr-accent), var(--clr-accent2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            font-size: 1.1rem;
+            line-height: 1.7;
+            color: var(--clr-dim);
+            max-width: 560px;
+            margin: 0 auto;
+        }
+
+        /* ── Main card area ──────────────────────────────────── */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            max-width: 1000px;
+            width: 100%;
+            animation: fadeUp .8s .15s ease-out both;
+        }
+
+        .card {
+            background: var(--clr-surface);
+            border: 1px solid rgba(255, 255, 255, .05);
+            border-radius: 20px;
+            padding: 2.5rem 2rem;
+            position: relative;
+            overflow: hidden;
+            transition: border-color .3s, box-shadow .3s;
+        }
+
+        .card:hover {
+            border-color: rgba(0, 229, 255, .15);
+            box-shadow: var(--glow-accent);
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, var(--clr-accent), var(--clr-accent2));
+            opacity: 0;
+            transition: opacity .3s;
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .card-label {
+            font-family: 'Orbitron', sans-serif;
+            font-size: .7rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--clr-accent);
+            margin-bottom: 1.2rem;
+        }
+
+        .card h2 {
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 1.35rem;
+            margin-bottom: .8rem;
+        }
+
+        .card p {
+            font-size: .92rem;
+            line-height: 1.7;
+            color: var(--clr-dim);
+        }
+
+        /* ── How-to steps ────────────────────────────────────── */
+        .steps {
+            list-style: none;
+            counter-reset: step;
+            margin-top: 1.2rem;
+        }
+
+        .steps li {
+            counter-increment: step;
+            display: flex;
+            align-items: flex-start;
+            gap: .8rem;
+            margin-bottom: 1rem;
+            font-size: .92rem;
+            line-height: 1.6;
+            color: var(--clr-dim);
+        }
+
+        .steps li::before {
+            content: counter(step);
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: rgba(0, 229, 255, .1);
+            border: 1px solid rgba(0, 229, 255, .25);
+            color: var(--clr-accent);
+            font-family: 'Orbitron', sans-serif;
+            font-size: .72rem;
+            font-weight: 700;
+        }
+
+        /* ── QR Card ─────────────────────────────────────────── */
+        .qr-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .qr-frame {
+            position: relative;
+            padding: 1.5rem;
+            border-radius: 16px;
+            background: #fff;
+            box-shadow: 0 0 60px rgba(0, 229, 255, .12), 0 20px 40px rgba(0, 0, 0, .25);
+            margin-bottom: 1.5rem;
+            transition: transform .3s, box-shadow .3s;
+        }
+
+        .qr-frame:hover {
+            transform: scale(1.03);
+            box-shadow: 0 0 80px rgba(0, 229, 255, .2), 0 20px 50px rgba(0, 0, 0, .3);
+        }
+
+        /* corner accents */
+        .qr-frame::before,
+        .qr-frame::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--clr-accent);
+        }
+
+        .qr-frame::before {
+            top: -4px;
+            left: -4px;
+            border-right: none;
+            border-bottom: none;
+            border-radius: 4px 0 0 0;
+        }
+
+        .qr-frame::after {
+            bottom: -4px;
+            right: -4px;
+            border-left: none;
+            border-top: none;
+            border-radius: 0 0 4px 0;
+        }
+
+        .qr-corner-tr,
+        .qr-corner-bl {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--clr-accent2);
+        }
+
+        .qr-corner-tr {
+            top: -4px;
+            right: -4px;
+            border-left: none;
+            border-bottom: none;
+            border-radius: 0 4px 0 0;
+        }
+
+        .qr-corner-bl {
+            bottom: -4px;
+            left: -4px;
+            border-right: none;
+            border-top: none;
+            border-radius: 0 0 0 4px;
+        }
+
+        #qr img {
+            display: block;
+            image-rendering: pixelated;
+        }
+
+        .qr-hint {
+            font-size: .82rem;
+            color: var(--clr-dim);
+            margin-top: .3rem;
+        }
+
+        .qr-hint svg {
+            vertical-align: middle;
+            margin-right: .3rem;
+        }
+
+        #controllerLink {
+            display: none;
+        }
+
+        /* ── Feature pills ───────────────────────────────────── */
+        .features {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.2rem;
+            max-width: 1000px;
+            width: 100%;
+            margin-top: 2rem;
+            animation: fadeUp .8s .3s ease-out both;
+        }
+
+        .feat {
+            display: flex;
+            align-items: center;
+            gap: .8rem;
+            padding: 1.2rem 1.3rem;
+            border-radius: 14px;
+            background: var(--clr-surface);
+            border: 1px solid rgba(255, 255, 255, .05);
+            transition: border-color .3s;
+        }
+
+        .feat:hover {
+            border-color: rgba(124, 77, 255, .2);
+        }
+
+        .feat-icon {
+            flex-shrink: 0;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            background: rgba(0, 229, 255, .08);
+        }
+
+        .feat-icon svg {
+            width: 20px;
+            height: 20px;
+            stroke: var(--clr-accent);
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .feat span {
+            font-size: .88rem;
+            font-weight: 500;
+        }
+
+        /* ── Footer ──────────────────────────────────────────── */
+        .footer {
+            margin-top: 4rem;
+            text-align: center;
+            color: var(--clr-dim);
+            font-size: .78rem;
+            opacity: .5;
+            animation: fadeUp .8s .45s ease-out both;
+        }
+
+        /* ── Cursor (game element) ───────────────────────────── */
+        .cursor {
+            position: fixed;
             width: 1rem;
             height: 1rem;
             margin-left: -.5rem;
             margin-top: -.5rem;
-            background: red;
+            background: var(--clr-accent);
             border-radius: 50%;
+            box-shadow: 0 0 12px var(--clr-accent), 0 0 30px rgba(0, 229, 255, .3);
             transition: top .1s, left .1s;
+            z-index: 100;
+        }
+
+        /* ── Responsive ──────────────────────────────────────── */
+        @media (max-width: 768px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .features {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 
 <body>
-    <h1>Desktop Controller</h1>
-    <p id="socketId">Connecting...</p>
-    <p id="status">Waiting for controller...</p>
-    <div id="qr"></div>
-    <p><a id="controllerLink" href="#" target="_blank"></a></p>
+
+    <!-- Maze-pattern background -->
+    <div class="maze-bg">
+        <svg viewBox="0 0 800 600" preserveAspectRatio="none">
+            <defs>
+                <pattern id="maze" x="0" y="0" width="60" height="60" patternUnits="userSpaceOnUse">
+                    <path d="M0 0h60v60H0z" fill="none" stroke="currentColor" stroke-width=".5" />
+                    <path d="M0 20h20v20H0M40 0v20h20M20 40h20v20" fill="none" stroke="currentColor"
+                        stroke-width=".5" />
+                </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#maze)" />
+        </svg>
+    </div>
+
+    <div class="wrapper">
+
+        <!-- Top bar -->
+        <nav class="topbar">
+            <div class="logo">Maze Runner</div>
+            <div class="status-pill">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="status">Verbinden…</span>
+            </div>
+        </nav>
+
+        <!-- Hero -->
+        <section class="hero">
+            <h1>Navigeer het doolhof met je smartphone</h1>
+            <p>Gebruik je telefoon als controller om een balletje door het doolhof te sturen. Scan de QR-code, kantel je
+                toestel en probeer de finish te bereiken. Geen app nodig — puur WebRTC.</p>
+        </section>
+
+        <!-- Main grid: How To + QR -->
+        <section class="main-grid">
+
+            <!-- How to play -->
+            <div class="card">
+                <div class="card-label">Hoe werkt het?</div>
+                <h2>In 3 stappen spelen</h2>
+                <ol class="steps">
+                    <li>Scan de QR-code rechts met de camera van je smartphone.</li>
+                    <li>Accepteer het beveiligingscertificaat en laat je browser verbinden.</li>
+                    <li>Kantel je telefoon om het balletje door het doolhof te bewegen. Bereik de finish!</li>
+                </ol>
+                <p style="margin-top: 1.2rem;">Je telefoon en dit scherm communiceren rechtstreeks via <strong
+                        style="color: var(--clr-accent);">WebRTC</strong> — razendsnel en zonder server ertussen.</p>
+            </div>
+
+            <!-- QR code -->
+            <div class="card qr-card">
+                <div class="card-label">Verbind je telefoon</div>
+                <div class="qr-frame">
+                    <span class="qr-corner-tr"></span>
+                    <span class="qr-corner-bl"></span>
+                    <div id="qr">
+                        <!-- QR wordt hier gegenereerd -->
+                        <svg width="132" height="132" viewBox="0 0 132 132" style="opacity:.12;">
+                            <rect width="132" height="132" rx="8" fill="#ccc" />
+                            <text x="66" y="72" text-anchor="middle" font-size="12" fill="#999">laden…</text>
+                        </svg>
+                    </div>
+                </div>
+                <p class="qr-hint">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round">
+                        <rect x="2" y="2" width="20" height="20" rx="2" />
+                        <line x1="7" y1="12" x2="17" y2="12" />
+                        <line x1="12" y1="7" x2="12" y2="17" />
+                    </svg>
+                    Scan met je telefoon-camera
+                </p>
+                <p><a id="controllerLink" href="#" target="_blank"></a></p>
+            </div>
+
+        </section>
+
+        <!-- Feature highlights -->
+        <section class="features">
+            <div class="feat">
+                <div class="feat-icon">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                    </svg>
+                </div>
+                <span>Real-time WebRTC</span>
+            </div>
+            <div class="feat">
+                <div class="feat-icon">
+                    <svg viewBox="0 0 24 24">
+                        <rect x="5" y="2" width="14" height="20" rx="2" />
+                        <line x1="12" y1="18" x2="12.01" y2="18" />
+                    </svg>
+                </div>
+                <span>Gyroscoop-besturing</span>
+            </div>
+            <div class="feat">
+                <div class="feat-icon">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
+                        <path d="M2 12h20" />
+                        <path
+                            d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10A15.3 15.3 0 0112 2z" />
+                    </svg>
+                </div>
+                <span>Geen app nodig</span>
+            </div>
+        </section>
+
+        <footer class="footer">
+            Maze Runner — WebRTC Assignment &middot; Creative Communication
+        </footer>
+    </div>
+
+    <!-- Hidden game cursor -->
     <div id="cursor" class="cursor" style="display:none;"></div>
 
+    <!-- Floating particles -->
+    <script>
+        (function createParticles() {
+            const count = 25;
+            for (let i = 0; i < count; i++) {
+                const p = document.createElement('div');
+                p.className = 'particle';
+                const size = Math.random() * 3 + 1;
+                p.style.cssText = `
+                    width:${size}px;height:${size}px;
+                    left:${Math.random() * 100}%;
+                    bottom:-10px;
+                    background:${Math.random() > .5 ? 'var(--clr-accent)' : 'var(--clr-accent2)'};
+                    opacity:${Math.random() * .4 + .1};
+                    animation-duration:${Math.random() * 12 + 8}s;
+                    animation-delay:${Math.random() * 10}s;
+                `;
+                document.body.appendChild(p);
+            }
+        })();
+    </script>
+
+    <!-- WebRTC Logic (ongewijzigd) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        const $socketId = document.getElementById('socketId');
         const $status = document.getElementById('status');
+        const $statusDot = document.getElementById('statusDot');
         const $cursor = document.getElementById('cursor');
         const $controllerLink = document.getElementById('controllerLink');
 
@@ -47,7 +647,7 @@
 
             socket.on('connect', () => {
                 console.log(`Connected: ${socket.id}`);
-                $socketId.textContent = `Socket ID: ${socket.id}`;
+                $status.textContent = 'Wachten op controller…';
 
                 const url = `${new URL(`/controller.html?id=${socket.id}`, window.location)}`;
                 $controllerLink.href = url;
@@ -58,7 +658,7 @@
                 const qr = qrcode(typeNumber, errorCorrectionLevel);
                 qr.addData(url);
                 qr.make();
-                document.getElementById('qr').innerHTML = qr.createImgTag(4);
+                document.getElementById('qr').innerHTML = qr.createImgTag(6);
             });
 
             socket.on('peerOffer', async (myId, offer, peerId) => {
@@ -101,7 +701,8 @@
                 };
                 channel.onopen = () => {
                     console.log('Data channel open!');
-                    $status.textContent = 'Controller connected via WebRTC!';
+                    $status.textContent = 'Controller verbonden!';
+                    $statusDot.classList.add('connected');
                 };
             };
 
