@@ -23,12 +23,70 @@ Je smartphone is de controller. Kantel je telefoon naar links → het balletje r
 
 ## 📅 Planning & Voortgang
 
-| Week | Fase                           | Status    | Beschrijving                                                                                                                                                                                                                                                                                                                                                                                                        | Branch                  | Oplevering                                                                    |
-| ---- | ------------------------------ | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- | ----------------------------------------------------------------------------- |
-| 1    | **MVP 1** — Signaling & Setup  | ✅ Klaar   | Express + Socket.io signaling server opzetten. Desktop page met QR code die de controller URL bevat. Controller page die via querystring de desktop vindt. Self-signed HTTPS certificaat. Basale 1-op-1 communicatie via websockets.                                                                                                                                                                                | `main`                  | Werkende signaling flow: telefoon scant QR → verbinding met desktop           |
-| 2    | **MVP 2** — WebRTC & Interface | ✅ Klaar   | Socket.io vervangen door WebRTC Data Channel voor alle besturing. Signaling layer behouden voor offer/answer/ICE. Futuristische UI gebouwd voor desktop (landing page, instructies, QR) en controller (meerdere schermen). Countdown timer bij verbinding. Gyroscoop-besturing via `DeviceOrientationEvent`. iOS permissie-knop. Disconnect-afhandeling met overlay. Tijdelijk game-scherm met beweegbaar balletje. | `feature/mazerunner-ui` | Telefoon kantelen → balletje beweegt op desktop via peer-to-peer data channel |
-| 3    | **MVP 3** — Maze Game          | 🔲 Gepland | Canvas-based doolhof tekenen (grid met muren en paden). Groen balletje (speler) bestuurd via gyroscoop met wall-collision. Witte muntjes verzamelen met score-teller. Rode ghost die automatisch beweegt door het doolhof. Game over bij ghost-hit, win bij alle muntjes. Game flow: countdown → spel → eindscherm.                                                                                                 | `feature/maze-game`     | Volledig speelbaar doolhof-spel bestuurd met smartphone gyroscoop             |
-| 4    | **MVP 4** — Bonus & Polish     | 🔲 Gepland | Microfoon-input via `getUserMedia` + Web Audio API. Blazen detecteren → ghost freeze (2s) via data channel met cooldown. UI/UX afwerking: game over/win scherm, HUD, visuele feedback. Testen op iPhone + Android. README, AI reflectie en documentatie afronden. Zip klaarmaken.                                                                                                                                   | `feature/audio-freeze`  | Bonuspunten: audio channel integratie + gepolijste eindversie                 |
+> **Startdatum:** 19 februari 2025 · **Deadline:** 22 maart 2025 · **Vandaag:** 5 maart 2025
+
+### Overzicht per MVP
+
+| Week | Fase                           | Status    | Branch                  | Geschatte tijd | Deadline    |
+| ---- | ------------------------------ | --------- | ----------------------- | -------------- | ----------- |
+| 1    | **MVP 1** — Signaling & Setup  | ✅ Klaar   | `main`                  | ~6 uur         | ~~28 feb~~  |
+| 2    | **MVP 2** — WebRTC & Interface | ✅ Klaar   | `feature/mazerunner-ui` | ~10 uur        | ~~7 maart~~ |
+| 3    | **MVP 3** — Maze Game          | 🔄 Bezig   | `feature/maze-game`     | ~12 uur        | 14 maart    |
+| 4    | **MVP 4** — Bonus & Polish     | 🔲 Gepland | `feature/audio-freeze`  | ~11,5 uur      | 21 maart    |
+
+### MVP 1 — Signaling & Setup ✅
+
+| Taak                                  | Tijd | Deadline | Status  |
+| ------------------------------------- | ---- | -------- | ------- |
+| Express + Socket.io server opzetten   | 1,5u | 21 feb   | ✅ Klaar |
+| Desktop page met QR code              | 1,5u | 23 feb   | ✅ Klaar |
+| Controller page via querystring       | 1,5u | 25 feb   | ✅ Klaar |
+| Self-signed HTTPS certificaat         | 1u   | 27 feb   | ✅ Klaar |
+| 1-op-1 communicatie testen & debuggen | 0,5u | 28 feb   | ✅ Klaar |
+
+**Oplevering:** Werkende signaling flow — telefoon scant QR → verbinding met desktop.
+
+### MVP 2 — WebRTC & Interface ✅
+
+| Taak                                                 | Tijd | Deadline | Status  |
+| ---------------------------------------------------- | ---- | -------- | ------- |
+| WebRTC Data Channel implementeren (offer/answer/ICE) | 2,5u | 2 maart  | ✅ Klaar |
+| Futuristische desktop UI (landing, instructies, QR)  | 2u   | 3 maart  | ✅ Klaar |
+| Controller UI (meerdere schermen)                    | 2u   | 4 maart  | ✅ Klaar |
+| Countdown timer (gesynchroniseerd via data channel)  | 1u   | 5 maart  | ✅ Klaar |
+| Gyroscoop-besturing + iOS permissie-knop             | 1,5u | 6 maart  | ✅ Klaar |
+| Disconnect-afhandeling met overlay                   | 0,5u | 6 maart  | ✅ Klaar |
+| Tijdelijk game-scherm met beweegbaar balletje        | 0,5u | 7 maart  | ✅ Klaar |
+
+**Oplevering:** Telefoon kantelen → balletje beweegt op desktop via peer-to-peer data channel.
+
+### MVP 3 — Maze Game 🔄
+
+| Taak                                           | Tijd | Deadline | Status    |
+| ---------------------------------------------- | ---- | -------- | --------- |
+| Canvas-based doolhof tekenen (grid + muren)    | 3u   | 7 maart  | 🔲 Gepland |
+| Speler (groen balletje) met wall-collision     | 2u   | 9 maart  | 🔲 Gepland |
+| Muntjes plaatsen + verzamelen met score-teller | 1,5u | 10 maart | 🔲 Gepland |
+| Ghost AI — automatisch bewegen door doolhof    | 3u   | 12 maart | 🔲 Gepland |
+| Game over (ghost-hit) + win (alle muntjes)     | 1,5u | 13 maart | 🔲 Gepland |
+| Game flow: countdown → spel → eindscherm       | 1u   | 14 maart | 🔲 Gepland |
+
+**Oplevering:** Volledig speelbaar doolhof-spel bestuurd met smartphone gyroscoop.
+
+### MVP 4 — Bonus & Polish 🔲
+
+| Taak                                               | Tijd | Deadline | Status    |
+| -------------------------------------------------- | ---- | -------- | --------- |
+| Microfoon-input via `getUserMedia` + Web Audio API | 2u   | 16 maart | 🔲 Gepland |
+| Blazen detecteren → ghost freeze (2s) + cooldown   | 2u   | 17 maart | 🔲 Gepland |
+| UI/UX afwerking: game over/win scherm, HUD         | 2u   | 18 maart | 🔲 Gepland |
+| Testen op iPhone + Android                         | 2u   | 19 maart | 🔲 Gepland |
+| README, AI reflectie en documentatie afronden      | 3u   | 20 maart | 🔲 Gepland |
+| Zip klaarmaken en inleveren                        | 0,5u | 21 maart | 🔲 Gepland |
+
+**Oplevering:** Bonuspunten — audio channel integratie + gepolijste eindversie.
+
+> 📌 **Buffer:** 21 maart alles af → 1 dag buffer vóór de deadline van 22 maart.
 
 
 
