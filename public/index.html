@@ -45,7 +45,7 @@
         <section class="hero">
             <h1>Navigeer het doolhof met je smartphone</h1>
             <p>Gebruik je telefoon als controller om een balletje door het doolhof te sturen. Scan de QR-code, kantel je
-                toestel en probeer de finish te bereiken. Geen app nodig — puur WebRTC.</p>
+                toestel en probeer de alle bolletjes te pakken. Geen app nodig — puur WebRTC.</p>
         </section>
 
         <!-- Main grid: How To + QR -->
@@ -58,7 +58,7 @@
                 <ol class="steps">
                     <li>Scan de QR-code rechts met de camera van je smartphone.</li>
                     <li>Accepteer het beveiligingscertificaat en laat je browser verbinden.</li>
-                    <li>Kantel je telefoon om het balletje door het doolhof te bewegen. Bereik de finish!</li>
+                    <li>Kantel je telefoon om het balletje door het doolhof te bewegen. Pak alle bolletjes!</li>
                 </ol>
                 <p style="margin-top: 1.2rem;">Je telefoon en dit scherm communiceren rechtstreeks via <strong
                         style="color: var(--clr-accent);">WebRTC</strong> — razendsnel en zonder server ertussen.</p>
@@ -282,11 +282,9 @@
                         $cursor.style.display = 'block';
                         $cursor.style.left = `${message.x * window.innerWidth}px`;
                         $cursor.style.top = `${message.y * window.innerHeight}px`;
-                    }
-                    if (message.type === 'tilt') {
+                    } else if (message.type === 'tilt') {
                         handleTilt(message.beta, message.gamma);
-                    }
-                    if (message.type === 'countdown-ready') {
+                    } else if (message.type === 'countdown-ready') {
                         startCountdown(channel);
                     }
                 };
