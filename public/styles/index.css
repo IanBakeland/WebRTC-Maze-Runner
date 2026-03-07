@@ -586,6 +586,24 @@ body {
     z-index: 10;
 }
 
+.maze-orb {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #ffd600;
+    box-shadow: 0 0 10px #ffd600, 0 0 24px rgba(255, 214, 0, .35);
+    transform: translate(-50%, -50%);
+    z-index: 8;
+    transition: transform .25s, opacity .25s;
+}
+
+.maze-orb.collected {
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0;
+    pointer-events: none;
+}
+
 .maze-wall {
     position: absolute;
     background: var(--clr-accent2);

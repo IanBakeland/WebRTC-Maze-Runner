@@ -26,6 +26,12 @@ let cellSize = 0;
 let mazeOffsetX = 0;
 let mazeOffsetY = 0;
 
+const ORB_COUNT = 8;
+const ORB_RADIUS = 10;
+let orbs = [];
+let orbsCollected = 0;
+const $orbCounter = document.getElementById('orbCounter');
+
 const generateMaze = () => {
     if (!$gamePlayground) return;
     const w = $gamePlayground.clientWidth;
@@ -75,6 +81,53 @@ const generateMaze = () => {
     }
 
     renderMaze();
+    spawnOrbs();
+};
+
+const spawnOrbs = () => {
+    $gamePlayground.querySelectorAll('.maze-orb').forEach(el => el.remove());
+    orbs = [];
+    orbsCollected = 0;
+    if ($orbCounter) $orbCounter.textContent = `0 / ${ORB_COUNT}`;
+
+    const centerCol = Math.floor(mazeCols / 2);
+    const centerRow = Math.floor(mazeRows / 2);
+    const usedCells = new Set();
+    usedCells.add(`${centerRow},${centerCol}`);
+
+    while (orbs.length < ORB_COUNT && usedCells.size < mazeRows * mazeCols) {
+        const r = Math.floor(Math.random() * mazeRows);
+        const c = Math.floor(Math.random() * mazeCols);
+        const key = `${r},${c}`;
+        if (usedCells.has(key)) continue;
+        usedCells.add(key);
+
+        const x = mazeOffsetX + c * cellSize + cellSize / 2;
+        const y = mazeOffsetY + r * cellSize + cellSize / 2;
+
+        const el = document.createElement('div');
+        el.className = 'maze-orb';
+        el.style.left = x + 'px';
+        el.style.top = y + 'px';
+        $gamePlayground.appendChild(el);
+
+        orbs.push({ x, y, el, collected: false });
+    }
+};
+
+const checkOrbCollision = () => {
+    const ballRadius = 12;
+    for (const orb of orbs) {
+        if (orb.collected) continue;
+        const dx = ballState.x - orb.x;
+        const dy = ballState.y - orb.y;
+        if (dx * dx + dy * dy < (ballRadius + ORB_RADIUS) * (ballRadius + ORB_RADIUS)) {
+            orb.collected = true;
+            orb.el.classList.add('collected');
+            orbsCollected++;
+            if ($orbCounter) $orbCounter.textContent = `${orbsCollected} / ${ORB_COUNT}`;
+        }
+    }
 };
 
 const renderMaze = () => {
@@ -204,6 +257,7 @@ const handleTilt = (() => {
         ballState.y = Math.max(pad, Math.min($gamePlayground.clientHeight - pad, ballState.y));
 
         updateBallPosition();
+        checkOrbCollision();
     };
 })();
 
