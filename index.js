@@ -18,11 +18,8 @@ app.use((req, res, next) => {
 });
 app.use(express.static('public'));
 
-const clients = {};
-
 io.on('connection', socket => {
     console.log(`Connection: ${socket.id}`);
-    clients[socket.id] = { id: socket.id };
 
     socket.on('peerOffer', (peerId, offer) => {
         console.log(`Received peerOffer from ${socket.id} to ${peerId}`);
@@ -41,7 +38,6 @@ io.on('connection', socket => {
 
     socket.on('disconnect', () => {
         console.log(`Disconnected: ${socket.id}`);
-        delete clients[socket.id];
     });
 });
 
