@@ -590,7 +590,6 @@ body {
     position: absolute;
     background: var(--clr-accent2);
     opacity: .55;
-    box-shadow: 0 0 6px var(--clr-accent2), 0 0 14px rgba(124, 77, 255, .2);
     border-radius: 1px;
     z-index: 5;
 }

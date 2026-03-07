@@ -78,29 +78,28 @@ const generateMaze = () => {
 };
 
 const renderMaze = () => {
-    $gamePlayground.querySelectorAll('.maze-wall').forEach(el => el.remove());
-    const t = 3; // wall thickness
-
-    const addWall = (x, y, w, h) => {
-        const wall = document.createElement('div');
-        wall.className = 'maze-wall';
-        wall.style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${h}px;`;
-        $gamePlayground.appendChild(wall);
-    };
+    const canvas = document.getElementById('mazeCanvas');
+    if (!canvas) return;
+    const w = $gamePlayground.clientWidth;
+    const h = $gamePlayground.clientHeight;
+    canvas.width = w;
+    canvas.height = h;
+    canvas.style.cssText = 'position:absolute;inset:0;z-index:5;';
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, w, h);
+    ctx.strokeStyle = 'rgba(124, 77, 255, 0.55)';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
 
     for (let r = 0; r < mazeRows; r++) {
         for (let c = 0; c < mazeCols; c++) {
             const cell = mazeGrid[r][c];
             const x = mazeOffsetX + c * cellSize;
             const y = mazeOffsetY + r * cellSize;
-            // Top wall (horizontal)
-            if (cell.top) addWall(x, y - t / 2, cellSize, t);
-            // Left wall (vertical)
-            if (cell.left) addWall(x - t / 2, y, t, cellSize);
-            // Right wall for last column
-            if (c === mazeCols - 1 && cell.right) addWall(x + cellSize - t / 2, y, t, cellSize);
-            // Bottom wall for last row
-            if (r === mazeRows - 1 && cell.bottom) addWall(x, y + cellSize - t / 2, cellSize, t);
+            if (cell.top) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + cellSize, y); ctx.stroke(); }
+            if (cell.left) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + cellSize); ctx.stroke(); }
+            if (c === mazeCols - 1 && cell.right) { ctx.beginPath(); ctx.moveTo(x + cellSize, y); ctx.lineTo(x + cellSize, y + cellSize); ctx.stroke(); }
+            if (r === mazeRows - 1 && cell.bottom) { ctx.beginPath(); ctx.moveTo(x, y + cellSize); ctx.lineTo(x + cellSize, y + cellSize); ctx.stroke(); }
         }
     }
 };
@@ -161,45 +160,52 @@ const updateBallPosition = () => {
     $gameBall.style.top = ballState.y + 'px';
 };
 
-const handleTilt = (beta, gamma) => {
-    // beta = front/back tilt (-180..180), gamma = left/right (-90..90)
-    if (!$gamePlayground) return;
+const handleTilt = (() => {
+    let lastTiltTime = 0;
+    const TILT_INTERVAL = 16; // ~60fps cap
 
-    if (!ballInitialized) initBall();
+    return (beta, gamma) => {
+        const now = performance.now();
+        if (now - lastTiltTime < TILT_INTERVAL) return;
+        lastTiltTime = now;
 
-    // Update debug HUD
-    if ($tiltDebug) $tiltDebug.textContent = `Tilt: ${Math.round(beta)}° / ${Math.round(gamma)}°`;
+        if (!$gamePlayground) return;
+        if (!ballInitialized) initBall();
 
-    // Physics: tilt -> acceleration
-    const sensitivity = 0.08;
-    const friction = 0.85;
-    const maxSpeed = 3;
+        // Update debug HUD
+        if ($tiltDebug) $tiltDebug.textContent = `Tilt: ${Math.round(beta)}° / ${Math.round(gamma)}°`;
 
-    // gamma controls X (left/right), beta controls Y (forward/back)
-    const ax = gamma * sensitivity;
-    const ay = (beta - 30) * sensitivity; // offset: phone held at ~30° = neutral
+        // Physics: tilt -> acceleration
+        const sensitivity = 0.08;
+        const friction = 0.85;
+        const maxSpeed = 3;
 
-    ballState.vx = Math.max(-maxSpeed, Math.min(maxSpeed, (ballState.vx + ax) * friction));
-    ballState.vy = Math.max(-maxSpeed, Math.min(maxSpeed, (ballState.vy + ay) * friction));
+        // gamma controls X (left/right), beta controls Y (forward/back)
+        const ax = gamma * sensitivity;
+        const ay = (beta - 30) * sensitivity; // offset: phone held at ~30° = neutral
 
-    ballState.x += ballState.vx;
-    ballState.y += ballState.vy;
+        ballState.vx = Math.max(-maxSpeed, Math.min(maxSpeed, (ballState.vx + ax) * friction));
+        ballState.vy = Math.max(-maxSpeed, Math.min(maxSpeed, (ballState.vy + ay) * friction));
 
-    // Maze wall collision
-    const ballRadius = 12;
-    const clamped = checkMazeCollision(ballState.x, ballState.y, ballRadius);
-    if (clamped.x !== ballState.x) ballState.vx = 0;
-    if (clamped.y !== ballState.y) ballState.vy = 0;
-    ballState.x = clamped.x;
-    ballState.y = clamped.y;
+        ballState.x += ballState.vx;
+        ballState.y += ballState.vy;
 
-    // Clamp to playground bounds
-    const pad = 12;
-    ballState.x = Math.max(pad, Math.min($gamePlayground.clientWidth - pad, ballState.x));
-    ballState.y = Math.max(pad, Math.min($gamePlayground.clientHeight - pad, ballState.y));
+        // Maze wall collision
+        const ballRadius = 12;
+        const clamped = checkMazeCollision(ballState.x, ballState.y, ballRadius);
+        if (clamped.x !== ballState.x) ballState.vx = 0;
+        if (clamped.y !== ballState.y) ballState.vy = 0;
+        ballState.x = clamped.x;
+        ballState.y = clamped.y;
 
-    updateBallPosition();
-};
+        // Clamp to playground bounds
+        const pad = 12;
+        ballState.x = Math.max(pad, Math.min($gamePlayground.clientWidth - pad, ballState.x));
+        ballState.y = Math.max(pad, Math.min($gamePlayground.clientHeight - pad, ballState.y));
+
+        updateBallPosition();
+    };
+})();
 
 // ── Countdown-overlay voor het desktop-scherm ──
 const startCountdown = () => {
