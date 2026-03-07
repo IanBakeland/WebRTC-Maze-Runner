@@ -82,6 +82,18 @@ const generateMaze = () => {
         }
     }
 
+    // Remove extra walls to create loops (multiple paths)
+    const extraOpenings = Math.floor(mazeRows * mazeCols * 0.35);
+    for (let i = 0; i < extraOpenings; i++) {
+        const r = Math.floor(Math.random() * mazeRows);
+        const c = Math.floor(Math.random() * mazeCols);
+        const dir = Math.floor(Math.random() * 4);
+        if (dir === 0 && r > 0) { mazeGrid[r][c].top = false; mazeGrid[r - 1][c].bottom = false; }
+        if (dir === 1 && r < mazeRows - 1) { mazeGrid[r][c].bottom = false; mazeGrid[r + 1][c].top = false; }
+        if (dir === 2 && c > 0) { mazeGrid[r][c].left = false; mazeGrid[r][c - 1].right = false; }
+        if (dir === 3 && c < mazeCols - 1) { mazeGrid[r][c].right = false; mazeGrid[r][c + 1].left = false; }
+    }
+
     renderMaze();
     spawnOrbs();
 };
