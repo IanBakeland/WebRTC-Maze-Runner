@@ -176,9 +176,9 @@ const handleTilt = (() => {
         if ($tiltDebug) $tiltDebug.textContent = `Tilt: ${Math.round(beta)}° / ${Math.round(gamma)}°`;
 
         // Physics: tilt -> acceleration
-        const sensitivity = 0.08;
-        const friction = 0.85;
-        const maxSpeed = 3;
+        const sensitivity = 0.12;
+        const friction = 0.87;
+        const maxSpeed = 4;
 
         // gamma controls X (left/right), beta controls Y (forward/back)
         const ax = gamma * sensitivity;
