@@ -12,14 +12,16 @@ const servers = {
 };
 
 // ── Bal-physics en tilt-afhandeling ──
+const $gamePlayground = document.getElementById('gamePlayground');
+const $gameBall = document.getElementById('gameBall');
+const $tiltDebug = document.getElementById('tiltDebug');
 const ballState = { x: 0, y: 0, vx: 0, vy: 0 };
 let ballInitialized = false;
 
 const initBall = () => {
-    const pg = document.getElementById('gamePlayground');
-    if (!pg) return;
-    ballState.x = pg.clientWidth / 2;
-    ballState.y = pg.clientHeight / 2;
+    if (!$gamePlayground) return;
+    ballState.x = $gamePlayground.clientWidth / 2;
+    ballState.y = $gamePlayground.clientHeight / 2;
     ballState.vx = 0;
     ballState.vy = 0;
     ballInitialized = true;
@@ -27,22 +29,19 @@ const initBall = () => {
 };
 
 const updateBallPosition = () => {
-    const ball = document.getElementById('gameBall');
-    if (!ball) return;
-    ball.style.left = ballState.x + 'px';
-    ball.style.top = ballState.y + 'px';
+    if (!$gameBall) return;
+    $gameBall.style.left = ballState.x + 'px';
+    $gameBall.style.top = ballState.y + 'px';
 };
 
 const handleTilt = (beta, gamma) => {
     // beta = front/back tilt (-180..180), gamma = left/right (-90..90)
-    const pg = document.getElementById('gamePlayground');
-    if (!pg) return;
+    if (!$gamePlayground) return;
 
     if (!ballInitialized) initBall();
 
     // Update debug HUD
-    const dbg = document.getElementById('tiltDebug');
-    if (dbg) dbg.textContent = `Tilt: ${Math.round(beta)}° / ${Math.round(gamma)}°`;
+    if ($tiltDebug) $tiltDebug.textContent = `Tilt: ${Math.round(beta)}° / ${Math.round(gamma)}°`;
 
     // Physics: tilt -> acceleration
     const sensitivity = 0.4;
@@ -61,14 +60,14 @@ const handleTilt = (beta, gamma) => {
 
     // Clamp to playground bounds
     const pad = 12;
-    ballState.x = Math.max(pad, Math.min(pg.clientWidth - pad, ballState.x));
-    ballState.y = Math.max(pad, Math.min(pg.clientHeight - pad, ballState.y));
+    ballState.x = Math.max(pad, Math.min($gamePlayground.clientWidth - pad, ballState.x));
+    ballState.y = Math.max(pad, Math.min($gamePlayground.clientHeight - pad, ballState.y));
 
     updateBallPosition();
 };
 
 // ── Countdown-overlay voor het desktop-scherm ──
-const startCountdown = (channel) => {
+const startCountdown = () => {
     const overlay = document.getElementById('countdownOverlay');
     const numEl = document.getElementById('countdownNumber');
     const circle = document.getElementById('countdownCircle');
@@ -163,16 +162,15 @@ const answerPeerOffer = async (offer, peerId) => {
             } else if (message.type === 'tilt') {
                 handleTilt(message.beta, message.gamma);
             } else if (message.type === 'countdown-ready') {
-                startCountdown(channel);
+                startCountdown();
             }
         };
         channel.onopen = () => {
             console.log('Data channel open!');
-            $status.textContent = 'Controller verbonden!';
             $statusDot.classList.add('connected');
             // Tell the controller we're connected; it may show permission screen first
             channel.send(JSON.stringify({ type: 'countdown-start' }));
-            $status.textContent = 'Wachten op controller…';
+            $status.textContent = 'Controller verbonden!';
         };
     };
 

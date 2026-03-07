@@ -9,12 +9,7 @@ const servers = {
     iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
 };
 
-const getUrlParameter = name => {
-    name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
-    const regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
-    const results = regex.exec(location.search);
-    return results === null ? false : decodeURIComponent(results[1].replace(/\+/g, ' '));
-};
+const getUrlParameter = name => new URLSearchParams(location.search).get(name) || false;
 
 const showScreen = (id) => {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -22,6 +17,7 @@ const showScreen = (id) => {
 };
 
 // ── Gyroscoop / oriëntatie-afhandeling ──
+const $tiltDot = document.getElementById('tiltDot');
 let orientationActive = false;
 let orientationHandler = null;
 
@@ -48,11 +44,10 @@ const startOrientation = () => {
         if (beta === null || gamma === null) return;
 
         // Visualize on tilt dot
-        const dot = document.getElementById('tiltDot');
-        if (dot) {
+        if ($tiltDot) {
             const dx = Math.max(-1, Math.min(1, gamma / 45)) * 50;
             const dy = Math.max(-1, Math.min(1, (beta - 30) / 45)) * 50;
-            dot.style.transform = `translate(${dx}px, ${dy}px)`;
+            $tiltDot.style.transform = `translate(${dx}px, ${dy}px)`;
         }
 
         // Send via data channel
