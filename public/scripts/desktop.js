@@ -33,6 +33,36 @@ let orbsCollected = 0;
 const $orbCounter = document.getElementById('orbCounter');
 const $victoryOverlay = document.getElementById('victoryOverlay');
 const $playAgainBtn = document.getElementById('playAgainBtn');
+const collectSound = new Audio('/assets/collect.mp3');
+const selectSound = new Audio('/assets/select.mp3');
+const bgMusic = new Audio('/assets/backgroundmusic.mp3');
+bgMusic.loop = true;
+bgMusic.volume = 0.8;
+let audioUnlocked = false;
+let soundEnabled = false;
+const $soundToggle = document.getElementById('soundToggle');
+
+const unlockAudio = () => {
+    if (audioUnlocked) return;
+    collectSound.play().then(() => { collectSound.pause(); collectSound.currentTime = 0; }).catch(() => { });
+    audioUnlocked = true;
+};
+
+if ($soundToggle) {
+    $soundToggle.addEventListener('click', () => {
+        unlockAudio();
+        soundEnabled = !soundEnabled;
+        $soundToggle.classList.toggle('muted', !soundEnabled);
+        const label = $soundToggle.querySelector('.sound-label');
+        if (label) label.textContent = soundEnabled ? 'Geluid aan' : 'Geluid uit';
+        if (soundEnabled) {
+            selectSound.currentTime = 0;
+            selectSound.play().catch(() => { });
+        } else {
+            bgMusic.pause();
+        }
+    });
+}
 
 const generateMaze = () => {
     if (!$gamePlayground) return;
@@ -138,6 +168,8 @@ const checkOrbCollision = () => {
         if (dx * dx + dy * dy < (ballRadius + ORB_RADIUS) * (ballRadius + ORB_RADIUS)) {
             orb.collected = true;
             orb.el.classList.add('collected');
+            collectSound.currentTime = 0;
+            if (soundEnabled) collectSound.play().catch(() => { });
             orbsCollected++;
             if ($orbCounter) $orbCounter.textContent = `${orbsCollected} / ${ORB_COUNT}`;
             if (orbsCollected >= ORB_COUNT) showVictory();
@@ -339,6 +371,7 @@ const startCountdown = () => {
             setTimeout(() => {
                 overlay.classList.remove('active');
                 document.getElementById('gameScreen').classList.add('active');
+                if (soundEnabled) bgMusic.play().catch(() => { });
             }, 800);
         }
     };
@@ -364,6 +397,8 @@ const handleDisconnect = () => {
             overlay.classList.remove('active');
             document.getElementById('countdownOverlay').classList.remove('active');
             document.getElementById('gameScreen').classList.remove('active');
+            bgMusic.pause();
+            bgMusic.currentTime = 0;
             $cursor.style.display = 'none';
             $statusDot.classList.remove('connected');
             $status.textContent = 'Wachten op controller…';

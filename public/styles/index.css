@@ -103,6 +103,81 @@ body {
     margin-bottom: 3rem;
 }
 
+.sound-toggle {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .45rem .9rem .45rem .65rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 214, 0, .35);
+    background: rgba(255, 214, 0, .08);
+    cursor: pointer;
+    transition: border-color .3s, background .3s, box-shadow .3s;
+    color: #ffd600;
+    animation: subtlePulse 2s ease-in-out infinite;
+}
+
+.sound-toggle:hover {
+    border-color: #ffd600;
+    background: rgba(255, 214, 0, .14);
+    box-shadow: 0 0 16px rgba(255, 214, 0, .2);
+}
+
+@keyframes subtlePulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 214, 0, .15);
+    }
+
+    50% {
+        box-shadow: 0 0 12px 2px rgba(255, 214, 0, .18);
+    }
+}
+
+.sound-toggle svg {
+    flex-shrink: 0;
+    fill: currentColor;
+    stroke: currentColor;
+    stroke-width: 0;
+}
+
+.sound-toggle .sound-off line {
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+}
+
+.sound-toggle .sound-off path {
+    fill: var(--clr-dim);
+}
+
+.sound-label {
+    font-family: 'Inter', sans-serif;
+    font-size: .78rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.sound-toggle .sound-off {
+    display: none;
+}
+
+.sound-toggle.muted .sound-on {
+    display: none;
+}
+
+.sound-toggle.muted .sound-off {
+    display: block;
+}
+
+.sound-toggle.muted {
+    color: var(--clr-dim);
+    border-color: rgba(255, 255, 255, .08);
+    background: var(--clr-surface);
+    animation: none;
+}
+
 .topbar .logo {
     font-family: 'Orbitron', sans-serif;
     font-weight: 900;
