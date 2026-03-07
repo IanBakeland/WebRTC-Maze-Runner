@@ -37,7 +37,7 @@ const collectSound = new Audio('/assets/collect.mp3');
 const selectSound = new Audio('/assets/select.mp3');
 const bgMusic = new Audio('/assets/backgroundmusic.mp3');
 bgMusic.loop = true;
-bgMusic.volume = 0.8;
+bgMusic.volume = 0.6;
 let audioUnlocked = false;
 let soundEnabled = false;
 const $soundToggle = document.getElementById('soundToggle');
@@ -308,9 +308,9 @@ const handleTilt = (() => {
         if ($tiltDebug) $tiltDebug.textContent = `Tilt: ${Math.round(beta)}° / ${Math.round(gamma)}°`;
 
         // Physics: tilt -> acceleration
-        const sensitivity = 0.12;
-        const friction = 0.87;
-        const maxSpeed = 4;
+        const sensitivity = 0.18;
+        const friction = 0.89;
+        const maxSpeed = 6;
 
         // gamma controls X (left/right), beta controls Y (forward/back)
         const ax = gamma * sensitivity;
