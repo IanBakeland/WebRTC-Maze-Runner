@@ -31,6 +31,8 @@ const ORB_RADIUS = 10;
 let orbs = [];
 let orbsCollected = 0;
 const $orbCounter = document.getElementById('orbCounter');
+const $victoryOverlay = document.getElementById('victoryOverlay');
+const $playAgainBtn = document.getElementById('playAgainBtn');
 
 const generateMaze = () => {
     if (!$gamePlayground) return;
@@ -126,9 +128,42 @@ const checkOrbCollision = () => {
             orb.el.classList.add('collected');
             orbsCollected++;
             if ($orbCounter) $orbCounter.textContent = `${orbsCollected} / ${ORB_COUNT}`;
+            if (orbsCollected >= ORB_COUNT) showVictory();
         }
     }
 };
+
+const showVictory = () => {
+    if (!$victoryOverlay) return;
+    $victoryOverlay.classList.add('active');
+    spawnConfetti();
+};
+
+const spawnConfetti = () => {
+    const container = $victoryOverlay.querySelector('.victory-particles');
+    if (!container) return;
+    container.innerHTML = '';
+    const colors = ['#ffd600', '#ff6d00', '#00e5ff', '#7c4dff', '#ff5252', '#69f0ae'];
+    for (let i = 0; i < 40; i++) {
+        const p = document.createElement('div');
+        p.className = 'victory-particle';
+        p.style.left = Math.random() * 100 + '%';
+        p.style.top = -10 + Math.random() * 20 + '%';
+        p.style.background = colors[Math.floor(Math.random() * colors.length)];
+        p.style.animationDelay = Math.random() * 1.2 + 's';
+        p.style.animationDuration = 1.8 + Math.random() * 1.5 + 's';
+        container.appendChild(p);
+    }
+};
+
+const resetGame = () => {
+    if (!$victoryOverlay) return;
+    $victoryOverlay.classList.remove('active');
+    ballInitialized = false;
+    initBall();
+};
+
+if ($playAgainBtn) $playAgainBtn.addEventListener('click', resetGame);
 
 const renderMaze = () => {
     const canvas = document.getElementById('mazeCanvas');
