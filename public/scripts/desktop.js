@@ -30,7 +30,7 @@ const generateMaze = () => {
     if (!$gamePlayground) return;
     const w = $gamePlayground.clientWidth;
     const h = $gamePlayground.clientHeight;
-    cellSize = 60;
+    cellSize = 120;
     mazeCols = Math.floor(w / cellSize);
     mazeRows = Math.floor(h / cellSize);
     if (mazeCols < 2) mazeCols = 2;
@@ -88,7 +88,7 @@ const renderMaze = () => {
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, w, h);
     ctx.strokeStyle = 'rgba(124, 77, 255, 0.55)';
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 6;
     ctx.lineCap = 'round';
 
     for (let r = 0; r < mazeRows; r++) {
