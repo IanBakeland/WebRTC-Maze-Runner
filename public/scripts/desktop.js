@@ -18,10 +18,137 @@ const $tiltDebug = document.getElementById('tiltDebug');
 const ballState = { x: 0, y: 0, vx: 0, vy: 0 };
 let ballInitialized = false;
 
+// ── Doolhof-generatie (recursive backtracker) ──
+let mazeGrid = [];
+let mazeCols = 0;
+let mazeRows = 0;
+let cellSize = 0;
+let mazeOffsetX = 0;
+let mazeOffsetY = 0;
+
+const generateMaze = () => {
+    if (!$gamePlayground) return;
+    const w = $gamePlayground.clientWidth;
+    const h = $gamePlayground.clientHeight;
+    cellSize = 60;
+    mazeCols = Math.floor(w / cellSize);
+    mazeRows = Math.floor(h / cellSize);
+    if (mazeCols < 2) mazeCols = 2;
+    if (mazeRows < 2) mazeRows = 2;
+    mazeOffsetX = (w - mazeCols * cellSize) / 2;
+    mazeOffsetY = (h - mazeRows * cellSize) / 2;
+
+    // Init grid — all walls present
+    mazeGrid = [];
+    for (let r = 0; r < mazeRows; r++) {
+        mazeGrid[r] = [];
+        for (let c = 0; c < mazeCols; c++) {
+            mazeGrid[r][c] = { top: true, right: true, bottom: true, left: true, visited: false };
+        }
+    }
+
+    // Recursive backtracker
+    const stack = [{ r: 0, c: 0 }];
+    mazeGrid[0][0].visited = true;
+
+    while (stack.length > 0) {
+        const cur = stack[stack.length - 1];
+        const nb = [];
+        if (cur.r > 0 && !mazeGrid[cur.r - 1][cur.c].visited) nb.push({ r: cur.r - 1, c: cur.c });
+        if (cur.r < mazeRows - 1 && !mazeGrid[cur.r + 1][cur.c].visited) nb.push({ r: cur.r + 1, c: cur.c });
+        if (cur.c > 0 && !mazeGrid[cur.r][cur.c - 1].visited) nb.push({ r: cur.r, c: cur.c - 1 });
+        if (cur.c < mazeCols - 1 && !mazeGrid[cur.r][cur.c + 1].visited) nb.push({ r: cur.r, c: cur.c + 1 });
+
+        if (nb.length === 0) {
+            stack.pop();
+        } else {
+            const next = nb[Math.floor(Math.random() * nb.length)];
+            const dr = next.r - cur.r;
+            const dc = next.c - cur.c;
+            if (dr === -1) { mazeGrid[cur.r][cur.c].top = false; mazeGrid[next.r][next.c].bottom = false; }
+            if (dr === 1) { mazeGrid[cur.r][cur.c].bottom = false; mazeGrid[next.r][next.c].top = false; }
+            if (dc === -1) { mazeGrid[cur.r][cur.c].left = false; mazeGrid[next.r][next.c].right = false; }
+            if (dc === 1) { mazeGrid[cur.r][cur.c].right = false; mazeGrid[next.r][next.c].left = false; }
+            mazeGrid[next.r][next.c].visited = true;
+            stack.push(next);
+        }
+    }
+
+    renderMaze();
+};
+
+const renderMaze = () => {
+    $gamePlayground.querySelectorAll('.maze-wall').forEach(el => el.remove());
+    const t = 3; // wall thickness
+
+    const addWall = (x, y, w, h) => {
+        const wall = document.createElement('div');
+        wall.className = 'maze-wall';
+        wall.style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${h}px;`;
+        $gamePlayground.appendChild(wall);
+    };
+
+    for (let r = 0; r < mazeRows; r++) {
+        for (let c = 0; c < mazeCols; c++) {
+            const cell = mazeGrid[r][c];
+            const x = mazeOffsetX + c * cellSize;
+            const y = mazeOffsetY + r * cellSize;
+            // Top wall (horizontal)
+            if (cell.top) addWall(x, y - t / 2, cellSize, t);
+            // Left wall (vertical)
+            if (cell.left) addWall(x - t / 2, y, t, cellSize);
+            // Right wall for last column
+            if (c === mazeCols - 1 && cell.right) addWall(x + cellSize - t / 2, y, t, cellSize);
+            // Bottom wall for last row
+            if (r === mazeRows - 1 && cell.bottom) addWall(x, y + cellSize - t / 2, cellSize, t);
+        }
+    }
+};
+
+// ── Collision met doolhof muren ──
+const checkMazeCollision = (newX, newY, radius) => {
+    if (mazeGrid.length === 0) return { x: newX, y: newY };
+
+    let x = newX;
+    let y = newY;
+
+    // Clamp to maze outer bounds
+    const left = mazeOffsetX + radius;
+    const right = mazeOffsetX + mazeCols * cellSize - radius;
+    const top = mazeOffsetY + radius;
+    const bottom = mazeOffsetY + mazeRows * cellSize - radius;
+    x = Math.max(left, Math.min(right, x));
+    y = Math.max(top, Math.min(bottom, y));
+
+    // Grid cell the ball center is in
+    const col = Math.floor((x - mazeOffsetX) / cellSize);
+    const row = Math.floor((y - mazeOffsetY) / cellSize);
+    const safeCol = Math.max(0, Math.min(mazeCols - 1, col));
+    const safeRow = Math.max(0, Math.min(mazeRows - 1, row));
+    const cell = mazeGrid[safeRow][safeCol];
+
+    const cellLeft = mazeOffsetX + safeCol * cellSize;
+    const cellTop = mazeOffsetY + safeRow * cellSize;
+    const cellRight = cellLeft + cellSize;
+    const cellBottom = cellTop + cellSize;
+
+    // Push ball away from walls
+    if (cell.top && y - radius < cellTop) y = cellTop + radius;
+    if (cell.bottom && y + radius > cellBottom) y = cellBottom - radius;
+    if (cell.left && x - radius < cellLeft) x = cellLeft + radius;
+    if (cell.right && x + radius > cellRight) x = cellRight - radius;
+
+    return { x, y };
+};
+
 const initBall = () => {
     if (!$gamePlayground) return;
-    ballState.x = $gamePlayground.clientWidth / 2;
-    ballState.y = $gamePlayground.clientHeight / 2;
+    generateMaze();
+    // Place ball in center cell
+    const centerCol = Math.floor(mazeCols / 2);
+    const centerRow = Math.floor(mazeRows / 2);
+    ballState.x = mazeOffsetX + centerCol * cellSize + cellSize / 2;
+    ballState.y = mazeOffsetY + centerRow * cellSize + cellSize / 2;
     ballState.vx = 0;
     ballState.vy = 0;
     ballInitialized = true;
@@ -57,6 +184,14 @@ const handleTilt = (beta, gamma) => {
 
     ballState.x += ballState.vx;
     ballState.y += ballState.vy;
+
+    // Maze wall collision
+    const ballRadius = 12;
+    const clamped = checkMazeCollision(ballState.x, ballState.y, ballRadius);
+    if (clamped.x !== ballState.x) ballState.vx = 0;
+    if (clamped.y !== ballState.y) ballState.vy = 0;
+    ballState.x = clamped.x;
+    ballState.y = clamped.y;
 
     // Clamp to playground bounds
     const pad = 12;
