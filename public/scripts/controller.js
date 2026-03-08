@@ -38,6 +38,9 @@ const startOrientation = () => {
     if (orientationActive) return;
     orientationActive = true;
 
+    let lastSendTime = 0;
+    const SEND_INTERVAL = 33; // ~30fps max over datachannel
+
     orientationHandler = (e) => {
         const beta = e.beta;   // front/back tilt -180..180
         const gamma = e.gamma; // left/right tilt -90..90
@@ -49,6 +52,11 @@ const startOrientation = () => {
             const dy = Math.max(-1, Math.min(1, (beta - 30) / 45)) * 50;
             $tiltDot.style.transform = `translate(${dx}px, ${dy}px)`;
         }
+
+        // Throttle data channel sends
+        const now = performance.now();
+        if (now - lastSendTime < SEND_INTERVAL) return;
+        lastSendTime = now;
 
         // Send via data channel
         if (dataChannel && dataChannel.readyState === 'open') {

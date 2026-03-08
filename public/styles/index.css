@@ -103,6 +103,81 @@ body {
     margin-bottom: 3rem;
 }
 
+.sound-toggle {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .45rem .9rem .45rem .65rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 214, 0, .35);
+    background: rgba(255, 214, 0, .08);
+    cursor: pointer;
+    transition: border-color .3s, background .3s, box-shadow .3s;
+    color: #ffd600;
+    animation: subtlePulse 2s ease-in-out infinite;
+}
+
+.sound-toggle:hover {
+    border-color: #ffd600;
+    background: rgba(255, 214, 0, .14);
+    box-shadow: 0 0 16px rgba(255, 214, 0, .2);
+}
+
+@keyframes subtlePulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 214, 0, .15);
+    }
+
+    50% {
+        box-shadow: 0 0 12px 2px rgba(255, 214, 0, .18);
+    }
+}
+
+.sound-toggle svg {
+    flex-shrink: 0;
+    fill: currentColor;
+    stroke: currentColor;
+    stroke-width: 0;
+}
+
+.sound-toggle .sound-off line {
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+}
+
+.sound-toggle .sound-off path {
+    fill: var(--clr-dim);
+}
+
+.sound-label {
+    font-family: 'Inter', sans-serif;
+    font-size: .78rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.sound-toggle .sound-off {
+    display: none;
+}
+
+.sound-toggle.muted .sound-on {
+    display: none;
+}
+
+.sound-toggle.muted .sound-off {
+    display: block;
+}
+
+.sound-toggle.muted {
+    color: var(--clr-dim);
+    border-color: rgba(255, 255, 255, .08);
+    background: var(--clr-surface);
+    animation: none;
+}
+
 .topbar .logo {
     font-family: 'Orbitron', sans-serif;
     font-weight: 900;
@@ -586,6 +661,43 @@ body {
     z-index: 10;
 }
 
+.maze-orb {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #ffd600;
+    box-shadow: 0 0 10px #ffd600, 0 0 24px rgba(255, 214, 0, .35);
+    transform: translate(-50%, -50%);
+    z-index: 8;
+    transition: transform .25s, opacity .25s;
+}
+
+.maze-orb.collected {
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.maze-enemy {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #ff5252;
+    box-shadow: 0 0 14px #ff5252, 0 0 32px rgba(255, 82, 82, .35);
+    transform: translate(-50%, -50%);
+    z-index: 9;
+}
+
+.maze-wall {
+    position: absolute;
+    background: var(--clr-accent2);
+    opacity: .55;
+    border-radius: 1px;
+    z-index: 5;
+}
+
 .game-ball-trail {
     position: absolute;
     width: 24px;
@@ -625,6 +737,237 @@ body {
     font-size: .75rem;
     color: var(--clr-dim);
     backdrop-filter: blur(6px);
+}
+
+/* ── Victory overlay ────────────────────────────────── */
+.victory-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 250;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(10, 10, 18, .94);
+    backdrop-filter: blur(16px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .5s;
+}
+
+.victory-overlay.active {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.victory-particles {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.victory-particle {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    opacity: 0;
+    animation: confettiFall 2.5s ease-out forwards;
+}
+
+@keyframes confettiFall {
+    0% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(60vh) scale(0);
+        opacity: 0;
+    }
+}
+
+.victory-trophy {
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    background: rgba(255, 214, 0, .1);
+    border: 2px solid rgba(255, 214, 0, .35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 2rem;
+    animation: fadeUp .6s ease-out both, trophyPulse 2s ease-in-out infinite 1s;
+}
+
+.victory-trophy svg {
+    width: 44px;
+    height: 44px;
+    fill: #ffd600;
+    filter: drop-shadow(0 0 12px rgba(255, 214, 0, .5));
+}
+
+@keyframes trophyPulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 214, 0, .2);
+    }
+
+    50% {
+        box-shadow: 0 0 30px 8px rgba(255, 214, 0, .15);
+    }
+}
+
+.victory-title {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: 2.2rem;
+    background: linear-gradient(135deg, #ffd600 0%, #ffab00 50%, #ff6d00 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: .6rem;
+    animation: fadeUp .6s .1s ease-out both;
+}
+
+.victory-msg {
+    font-size: 1rem;
+    color: var(--clr-dim);
+    margin-bottom: 2.5rem;
+    text-align: center;
+    animation: fadeUp .6s .2s ease-out both;
+}
+
+.victory-accent {
+    color: #ffd600;
+    font-weight: 600;
+}
+
+.victory-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: .6rem;
+    padding: .85rem 2rem;
+    border: none;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #ffd600, #ffab00);
+    color: #0a0a12;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    font-size: .9rem;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: transform .2s, box-shadow .2s;
+    box-shadow: 0 0 20px rgba(255, 214, 0, .25);
+    animation: fadeUp .6s .3s ease-out both;
+}
+
+.victory-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 32px rgba(255, 214, 0, .4);
+}
+
+.victory-btn:active {
+    transform: scale(.97);
+}
+
+.victory-btn svg {
+    fill: #0a0a12;
+}
+
+/* ── Game Over overlay ──────────────────────────────── */
+.gameover-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 260;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(10, 10, 18, .94);
+    backdrop-filter: blur(16px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .5s;
+}
+
+.gameover-overlay.active {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.gameover-icon {
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    background: rgba(255, 82, 82, .1);
+    border: 2px solid rgba(255, 82, 82, .35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 2rem;
+    animation: fadeUp .6s ease-out both;
+}
+
+.gameover-icon svg {
+    width: 44px;
+    height: 44px;
+    fill: none;
+    stroke: #ff5252;
+    stroke-width: 2;
+    stroke-linecap: round;
+    filter: drop-shadow(0 0 12px rgba(255, 82, 82, .5));
+}
+
+.gameover-title {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: 2.2rem;
+    color: #ff5252;
+    margin-bottom: .6rem;
+    animation: fadeUp .6s .1s ease-out both;
+}
+
+.gameover-msg {
+    font-size: 1rem;
+    color: var(--clr-dim);
+    margin-bottom: 2.5rem;
+    text-align: center;
+    animation: fadeUp .6s .2s ease-out both;
+}
+
+.gameover-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: .6rem;
+    padding: .85rem 2rem;
+    border: none;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #ff5252, #d50000);
+    color: #fff;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    font-size: .9rem;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: transform .2s, box-shadow .2s;
+    box-shadow: 0 0 20px rgba(255, 82, 82, .25);
+    animation: fadeUp .6s .3s ease-out both;
+}
+
+.gameover-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 32px rgba(255, 82, 82, .4);
+}
+
+.gameover-btn:active {
+    transform: scale(.97);
+}
+
+.gameover-btn svg {
+    fill: #fff;
 }
 
 /* ── Disconnect overlay ────────────────────────────── */
