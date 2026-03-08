@@ -679,6 +679,17 @@ body {
     pointer-events: none;
 }
 
+.maze-enemy {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #ff5252;
+    box-shadow: 0 0 14px #ff5252, 0 0 32px rgba(255, 82, 82, .35);
+    transform: translate(-50%, -50%);
+    z-index: 9;
+}
+
 .maze-wall {
     position: absolute;
     background: var(--clr-accent2);
@@ -864,6 +875,99 @@ body {
 
 .victory-btn svg {
     fill: #0a0a12;
+}
+
+/* ── Game Over overlay ──────────────────────────────── */
+.gameover-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 260;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(10, 10, 18, .94);
+    backdrop-filter: blur(16px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .5s;
+}
+
+.gameover-overlay.active {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.gameover-icon {
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    background: rgba(255, 82, 82, .1);
+    border: 2px solid rgba(255, 82, 82, .35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 2rem;
+    animation: fadeUp .6s ease-out both;
+}
+
+.gameover-icon svg {
+    width: 44px;
+    height: 44px;
+    fill: none;
+    stroke: #ff5252;
+    stroke-width: 2;
+    stroke-linecap: round;
+    filter: drop-shadow(0 0 12px rgba(255, 82, 82, .5));
+}
+
+.gameover-title {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: 2.2rem;
+    color: #ff5252;
+    margin-bottom: .6rem;
+    animation: fadeUp .6s .1s ease-out both;
+}
+
+.gameover-msg {
+    font-size: 1rem;
+    color: var(--clr-dim);
+    margin-bottom: 2.5rem;
+    text-align: center;
+    animation: fadeUp .6s .2s ease-out both;
+}
+
+.gameover-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: .6rem;
+    padding: .85rem 2rem;
+    border: none;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #ff5252, #d50000);
+    color: #fff;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    font-size: .9rem;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: transform .2s, box-shadow .2s;
+    box-shadow: 0 0 20px rgba(255, 82, 82, .25);
+    animation: fadeUp .6s .3s ease-out both;
+}
+
+.gameover-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 32px rgba(255, 82, 82, .4);
+}
+
+.gameover-btn:active {
+    transform: scale(.97);
+}
+
+.gameover-btn svg {
+    fill: #fff;
 }
 
 /* ── Disconnect overlay ────────────────────────────── */

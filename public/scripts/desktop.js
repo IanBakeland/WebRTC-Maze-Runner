@@ -26,6 +26,12 @@ let cellSize = 0;
 let mazeOffsetX = 0;
 let mazeOffsetY = 0;
 
+const ENEMY_COUNT = 2;
+const ENEMY_RADIUS = 12;
+const ENEMY_SPEED = 0.7;
+let enemies = [];
+let enemyAnimId = null;
+let gameOver = false;
 const ORB_COUNT = 8;
 const ORB_RADIUS = 10;
 let orbs = [];
@@ -33,6 +39,8 @@ let orbsCollected = 0;
 const $orbCounter = document.getElementById('orbCounter');
 const $victoryOverlay = document.getElementById('victoryOverlay');
 const $playAgainBtn = document.getElementById('playAgainBtn');
+const $gameOverOverlay = document.getElementById('gameOverOverlay');
+const $retryBtn = document.getElementById('retryBtn');
 const collectSound = new Audio('/assets/collect.mp3');
 const selectSound = new Audio('/assets/select.mp3');
 const bgMusic = new Audio('/assets/backgroundmusic.mp3');
@@ -126,6 +134,7 @@ const generateMaze = () => {
 
     renderMaze();
     spawnOrbs();
+    spawnEnemies();
 };
 
 const spawnOrbs = () => {
@@ -201,13 +210,156 @@ const spawnConfetti = () => {
 };
 
 const resetGame = () => {
-    if (!$victoryOverlay) return;
-    $victoryOverlay.classList.remove('active');
+    if ($victoryOverlay) $victoryOverlay.classList.remove('active');
+    if ($gameOverOverlay) $gameOverOverlay.classList.remove('active');
+    gameOver = false;
     ballInitialized = false;
     initBall();
 };
 
 if ($playAgainBtn) $playAgainBtn.addEventListener('click', resetGame);
+if ($retryBtn) $retryBtn.addEventListener('click', resetGame);
+
+// ── Enemies (rode bolletjes) ──
+const spawnEnemies = () => {
+    // Remove old enemy elements
+    $gamePlayground.querySelectorAll('.maze-enemy').forEach(el => el.remove());
+    enemies = [];
+    if (enemyAnimId) { cancelAnimationFrame(enemyAnimId); enemyAnimId = null; }
+
+    const centerCol = Math.floor(mazeCols / 2);
+    const centerRow = Math.floor(mazeRows / 2);
+    const usedCells = new Set();
+    usedCells.add(`${centerRow},${centerCol}`);
+    // Also avoid cells adjacent to center
+    for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+            usedCells.add(`${centerRow + dr},${centerCol + dc}`);
+        }
+    }
+
+    while (enemies.length < ENEMY_COUNT) {
+        const r = Math.floor(Math.random() * mazeRows);
+        const c = Math.floor(Math.random() * mazeCols);
+        const key = `${r},${c}`;
+        if (usedCells.has(key)) continue;
+        usedCells.add(key);
+
+        const x = mazeOffsetX + c * cellSize + cellSize / 2;
+        const y = mazeOffsetY + r * cellSize + cellSize / 2;
+
+        const el = document.createElement('div');
+        el.className = 'maze-enemy';
+        el.style.left = x + 'px';
+        el.style.top = y + 'px';
+        $gamePlayground.appendChild(el);
+
+        enemies.push({ x, y, el });
+    }
+
+    startEnemyLoop();
+};
+
+const getOpenNeighbors = (row, col) => {
+    const nb = [];
+    const cell = mazeGrid[row][col];
+    if (!cell.top && row > 0) nb.push({ r: row - 1, c: col });
+    if (!cell.bottom && row < mazeRows - 1) nb.push({ r: row + 1, c: col });
+    if (!cell.left && col > 0) nb.push({ r: row, c: col - 1 });
+    if (!cell.right && col < mazeCols - 1) nb.push({ r: row, c: col + 1 });
+    return nb;
+};
+
+const moveEnemyTowardPlayer = (enemy) => {
+    // Get current grid cell of enemy and player
+    const eCol = Math.floor((enemy.x - mazeOffsetX) / cellSize);
+    const eRow = Math.floor((enemy.y - mazeOffsetY) / cellSize);
+    const pCol = Math.floor((ballState.x - mazeOffsetX) / cellSize);
+    const pRow = Math.floor((ballState.y - mazeOffsetY) / cellSize);
+    const safeECol = Math.max(0, Math.min(mazeCols - 1, eCol));
+    const safeERow = Math.max(0, Math.min(mazeRows - 1, eRow));
+
+    // BFS to find direction toward player
+    const target = `${pRow},${pCol}`;
+    const start = `${safeERow},${safeECol}`;
+    if (start === target) {
+        // Same cell — move directly toward ball
+        const dx = ballState.x - enemy.x;
+        const dy = ballState.y - enemy.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        enemy.x += (dx / dist) * ENEMY_SPEED;
+        enemy.y += (dy / dist) * ENEMY_SPEED;
+        return;
+    }
+
+    const visited = new Set();
+    const queue = [{ r: safeERow, c: safeECol, firstR: -1, firstC: -1 }];
+    visited.add(start);
+
+    let nextR = safeERow;
+    let nextC = safeECol;
+
+    while (queue.length > 0) {
+        const cur = queue.shift();
+        if (`${cur.r},${cur.c}` === target) {
+            nextR = cur.firstR;
+            nextC = cur.firstC;
+            break;
+        }
+        for (const nb of getOpenNeighbors(cur.r, cur.c)) {
+            const key = `${nb.r},${nb.c}`;
+            if (visited.has(key)) continue;
+            visited.add(key);
+            queue.push({
+                r: nb.r, c: nb.c,
+                firstR: cur.firstR === -1 ? nb.r : cur.firstR,
+                firstC: cur.firstC === -1 ? nb.c : cur.firstC
+            });
+        }
+    }
+
+    // Move toward center of next cell
+    const targetX = mazeOffsetX + nextC * cellSize + cellSize / 2;
+    const targetY = mazeOffsetY + nextR * cellSize + cellSize / 2;
+    const dx = targetX - enemy.x;
+    const dy = targetY - enemy.y;
+    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    enemy.x += (dx / dist) * ENEMY_SPEED;
+    enemy.y += (dy / dist) * ENEMY_SPEED;
+};
+
+const startEnemyLoop = () => {
+    const tick = () => {
+        if (gameOver || !ballInitialized) return;
+        for (const enemy of enemies) {
+            moveEnemyTowardPlayer(enemy);
+            enemy.el.style.left = enemy.x + 'px';
+            enemy.el.style.top = enemy.y + 'px';
+        }
+        enemyAnimId = requestAnimationFrame(tick);
+    };
+    enemyAnimId = requestAnimationFrame(tick);
+};
+
+const checkEnemyCollision = () => {
+    if (gameOver) return;
+    const ballRadius = 12;
+    for (const enemy of enemies) {
+        const dx = ballState.x - enemy.x;
+        const dy = ballState.y - enemy.y;
+        if (dx * dx + dy * dy < (ballRadius + ENEMY_RADIUS) * (ballRadius + ENEMY_RADIUS)) {
+            triggerGameOver();
+            return;
+        }
+    }
+};
+
+const triggerGameOver = () => {
+    gameOver = true;
+    if (enemyAnimId) { cancelAnimationFrame(enemyAnimId); enemyAnimId = null; }
+    bgMusic.pause();
+    if ($gameOverOverlay) $gameOverOverlay.classList.add('active');
+};
 
 const renderMaze = () => {
     const canvas = document.getElementById('mazeCanvas');
@@ -283,6 +435,7 @@ const initBall = () => {
     ballState.vx = 0;
     ballState.vy = 0;
     ballInitialized = true;
+    gameOver = false;
     updateBallPosition();
 };
 
@@ -302,7 +455,8 @@ const handleTilt = (() => {
         lastTiltTime = now;
 
         if (!$gamePlayground) return;
-        if (!ballInitialized) initBall();
+        if (gameOver) return;
+        if (!ballInitialized) return;
 
         // Update debug HUD
         if ($tiltDebug) $tiltDebug.textContent = `Tilt: ${Math.round(beta)}° / ${Math.round(gamma)}°`;
@@ -337,6 +491,7 @@ const handleTilt = (() => {
 
         updateBallPosition();
         checkOrbCollision();
+        checkEnemyCollision();
     };
 })();
 
@@ -371,6 +526,7 @@ const startCountdown = () => {
             setTimeout(() => {
                 overlay.classList.remove('active');
                 document.getElementById('gameScreen').classList.add('active');
+                initBall();
                 if (soundEnabled) bgMusic.play().catch(() => { });
             }, 800);
         }
