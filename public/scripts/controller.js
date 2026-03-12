@@ -1,3 +1,5 @@
+import { createParticles } from './particles.js';
+
 // ── Gedeelde state en DOM-referenties voor de controller ──
 let socket, peerConnection, dataChannel, targetSocketId;
 
@@ -5,9 +7,13 @@ const $status = document.getElementById('status');
 const $statusDot = document.getElementById('statusDot');
 const $statusText = document.getElementById('statusText');
 
+createParticles(15);
+
 const servers = {
     iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
 };
+
+
 
 const getUrlParameter = name => new URLSearchParams(location.search).get(name) || false;
 
@@ -185,6 +191,31 @@ const callPeer = async (peerId) => {
         const message = JSON.parse(event.data);
         if (message.type === 'countdown-start') {
             onConnected();
+        } else if (message.type === 'victory') {
+            stopOrientation();
+            showScreen('victoryScreen');
+        } else if (message.type === 'game-over') {
+            stopOrientation();
+            showScreen('gameOverScreen');
+        } else if (message.type === 'paused') {
+            stopOrientation();
+            showScreen('pausedScreen');
+        } else if (message.type === 'resumed') {
+            showScreen('controlsScreen');
+            startOrientation();
+        } else if (message.type === 'game-restart') {
+            handlePlayAgain();
+        } else if (message.type === 'room-code') {
+            const $label = document.getElementById('roomCodeLabel');
+            if ($label) $label.textContent = `Room: ${message.code}`;
+        } else if (message.type === 'sound-state') {
+            const $ctrlSoundBtn = document.getElementById('ctrlSoundBtn');
+            if ($ctrlSoundBtn) $ctrlSoundBtn.classList.toggle('muted', !message.enabled);
+        } else if (message.type === 'orbs-updated') {
+            const $orbCounter = document.getElementById('controlOrbCounter');
+            if ($orbCounter) {
+                $orbCounter.textContent = `Orbs: ${message.count} / ${message.total}`;
+            }
         }
     };
 
@@ -209,6 +240,65 @@ const sendCursorData = (x, y) => {
     if (!dataChannel || dataChannel.readyState !== 'open') return;
     dataChannel.send(JSON.stringify({ type: 'cursor', x, y }));
 };
+
+const handlePlayAgain = () => {
+    if (dataChannel && dataChannel.readyState === 'open') {
+        dataChannel.send(JSON.stringify({ type: 'play-again' }));
+    }
+    startCountdown();
+};
+
+document.getElementById('ctrlPlayAgainBtn').addEventListener('click', handlePlayAgain);
+document.getElementById('ctrlRetryBtn').addEventListener('click', handlePlayAgain);
+
+
+// ── Sound toggle from controller ──
+document.getElementById('ctrlSoundBtn').addEventListener('click', () => {
+    if (dataChannel && dataChannel.readyState === 'open') {
+        dataChannel.send(JSON.stringify({ type: 'toggle-sound' }));
+    }
+});
+
+// ── Pause / Resume handlers for controller ──
+document.getElementById('ctrlPauseBtn').addEventListener('click', () => {
+    if (dataChannel && dataChannel.readyState === 'open') {
+        dataChannel.send(JSON.stringify({ type: 'pause' }));
+    }
+    stopOrientation();
+    showScreen('pausedScreen');
+});
+
+document.getElementById('ctrlResumeBtn').addEventListener('click', () => {
+    if (dataChannel && dataChannel.readyState === 'open') {
+        dataChannel.send(JSON.stringify({ type: 'resume' }));
+    }
+    showScreen('controlsScreen');
+    startOrientation();
+    resetRestartConfirm();
+});
+
+// ── Restart confirmation ──
+const $ctrlPauseRestartBtn = document.getElementById('ctrlPauseRestartBtn');
+let restartConfirmed = false;
+
+const resetRestartConfirm = () => {
+    restartConfirmed = false;
+    if ($ctrlPauseRestartBtn) {
+        $ctrlPauseRestartBtn.textContent = 'Opnieuw spelen';
+        $ctrlPauseRestartBtn.classList.remove('confirm');
+    }
+};
+
+$ctrlPauseRestartBtn.addEventListener('click', () => {
+    if (!restartConfirmed) {
+        restartConfirmed = true;
+        $ctrlPauseRestartBtn.textContent = 'Weet je het zeker?';
+        $ctrlPauseRestartBtn.classList.add('confirm');
+        return;
+    }
+    resetRestartConfirm();
+    handlePlayAgain();
+});
 
 const init = () => {
     targetSocketId = getUrlParameter('id');

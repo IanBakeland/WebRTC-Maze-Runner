@@ -450,6 +450,27 @@ body {
     margin-top: .3rem;
 }
 
+/* ── Room code badge (desktop) ───────────────────────── */
+.room-code-badge {
+    display: inline-block;
+    margin-top: .8rem;
+    padding: .35rem .9rem;
+    font-family: 'Orbitron', monospace;
+    font-size: .85rem;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--clr-accent);
+    border: 1px solid rgba(0, 229, 255, .3);
+    border-radius: 999px;
+    background: rgba(0, 229, 255, .06);
+}
+
+.game-room-code {
+    font-family: 'Orbitron', monospace !important;
+    letter-spacing: 2px;
+    color: var(--clr-accent) !important;
+}
+
 .qr-hint svg {
     vertical-align: middle;
     margin-right: .3rem;
@@ -835,7 +856,7 @@ body {
 .victory-msg {
     font-size: 1rem;
     color: var(--clr-dim);
-    margin-bottom: 2.5rem;
+    margin-bottom: 1.5rem;
     text-align: center;
     animation: fadeUp .6s .2s ease-out both;
 }
@@ -933,9 +954,18 @@ body {
 .gameover-msg {
     font-size: 1rem;
     color: var(--clr-dim);
-    margin-bottom: 2.5rem;
+    margin-bottom: 1.5rem;
     text-align: center;
     animation: fadeUp .6s .2s ease-out both;
+}
+
+.overlay-hint {
+    font-family: 'Orbitron', sans-serif;
+    font-size: .75rem;
+    letter-spacing: 1px;
+    color: var(--clr-dim);
+    opacity: .7;
+    animation: fadeUp .6s .3s ease-out both;
 }
 
 .gameover-btn {
@@ -968,6 +998,143 @@ body {
 
 .gameover-btn svg {
     fill: #fff;
+}
+
+/* ── Pause overlay ──────────────────────────────────── */
+.pause-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 255;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(10, 10, 18, .94);
+    backdrop-filter: blur(16px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .5s;
+}
+
+.pause-overlay.active {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.pause-icon {
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    background: rgba(0, 229, 255, .08);
+    border: 2px solid rgba(0, 229, 255, .25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 2rem;
+    animation: fadeUp .6s ease-out both, pausePulse 2.5s ease-in-out infinite 1s;
+}
+
+.pause-icon svg {
+    width: 44px;
+    height: 44px;
+    fill: var(--clr-accent);
+    filter: drop-shadow(0 0 12px rgba(0, 229, 255, .5));
+}
+
+@keyframes pausePulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(0, 229, 255, .15); }
+    50% { box-shadow: 0 0 30px 8px rgba(0, 229, 255, .1); }
+}
+
+.pause-title {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: 2.2rem;
+    background: linear-gradient(135deg, var(--clr-accent) 0%, var(--clr-accent2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: .6rem;
+    animation: fadeUp .6s .1s ease-out both;
+}
+
+.pause-msg {
+    font-size: 1rem;
+    color: var(--clr-dim);
+    margin-bottom: 2rem;
+    text-align: center;
+    max-width: 380px;
+    animation: fadeUp .6s .2s ease-out both;
+}
+
+.pause-buttons {
+    display: flex;
+    gap: 1rem;
+    animation: fadeUp .6s .3s ease-out both;
+}
+
+.pause-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: .6rem;
+    padding: .85rem 2rem;
+    border: none;
+    border-radius: 999px;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    font-size: .9rem;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: transform .2s, box-shadow .2s;
+}
+
+.pause-btn:hover {
+    transform: scale(1.05);
+}
+
+.pause-btn:active {
+    transform: scale(.97);
+}
+
+.pause-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.pause-btn.resume-btn {
+    background: linear-gradient(135deg, var(--clr-accent), var(--clr-accent2));
+    color: var(--clr-bg);
+    box-shadow: 0 0 20px rgba(0, 229, 255, .25);
+}
+
+.pause-btn.resume-btn:hover {
+    box-shadow: 0 0 32px rgba(0, 229, 255, .4);
+}
+
+.pause-btn.resume-btn svg {
+    fill: var(--clr-bg);
+    stroke: none;
+}
+
+.pause-btn.restart-btn {
+    background: transparent;
+    color: var(--clr-dim);
+    border: 1px solid rgba(255, 255, 255, .1);
+    box-shadow: none;
+}
+
+.pause-btn.restart-btn:hover {
+    border-color: rgba(255, 255, 255, .2);
+    color: var(--clr-text);
+    box-shadow: 0 0 16px rgba(255, 255, 255, .06);
+}
+
+.pause-btn.restart-btn svg {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 
 /* ── Disconnect overlay ────────────────────────────── */

@@ -1,19 +1,27 @@
-(function () {
-    const script = document.currentScript;
-    const count = parseInt(script.dataset.count) || 20;
-    for (let i = 0; i < count; i++) {
-        const p = document.createElement('div');
-        p.className = 'particle';
-        const size = Math.random() * 3 + 1;
-        p.style.cssText = `
-            width:${size}px;height:${size}px;
-            left:${Math.random() * 100}%;
+const randomBetween = (min, max) => Math.random() * (max - min) + min;
+
+export const createParticles = (count = 20) => {
+    const total = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 20;
+    const fragment = document.createDocumentFragment();
+
+    for (let i = 0; i < total; i++) {
+        const particle = document.createElement('div');
+        const size = randomBetween(1, 4);
+
+        particle.className = 'particle';
+        particle.style.cssText = `
+            width:${size}px;
+            height:${size}px;
+            left:${randomBetween(0, 100)}%;
             bottom:-10px;
-            background:${Math.random() > .5 ? 'var(--clr-accent)' : 'var(--clr-accent2)'};
-            opacity:${Math.random() * .4 + .1};
-            animation-duration:${Math.random() * 12 + 8}s;
-            animation-delay:${Math.random() * 10}s;
+            background:${Math.random() > 0.5 ? 'var(--clr-accent)' : 'var(--clr-accent2)'};
+            opacity:${randomBetween(0.1, 0.5)};
+            animation-duration:${randomBetween(8, 20)}s;
+            animation-delay:${randomBetween(0, 10)}s;
         `;
-        document.body.appendChild(p);
+
+        fragment.appendChild(particle);
     }
-})();
+
+    document.body.appendChild(fragment);
+};

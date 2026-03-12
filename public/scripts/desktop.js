@@ -1,11 +1,17 @@
+import { createParticles } from './particles.js';
+
 // ── Gedeelde state en DOM-referenties voor het desktop-scherm ──
 const $status = document.getElementById('status');
 const $statusDot = document.getElementById('statusDot');
 const $cursor = document.getElementById('cursor');
 const $controllerLink = document.getElementById('controllerLink');
 
+createParticles(25);
+
 let socket;
 let peerConnection;
+let dataChannel;
+let roomCode = '----';
 
 const servers = {
     iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
@@ -28,19 +34,18 @@ let mazeOffsetY = 0;
 
 const ENEMY_COUNT = 2;
 const ENEMY_RADIUS = 12;
-const ENEMY_SPEED = 0.7;
+const ENEMY_SPEED = 1.1;
 let enemies = [];
 let enemyAnimId = null;
 let gameOver = false;
+let gamePaused = false;
 const ORB_COUNT = 8;
-const ORB_RADIUS = 10;
+const ORB_RADIUS = 16;
 let orbs = [];
 let orbsCollected = 0;
 const $orbCounter = document.getElementById('orbCounter');
 const $victoryOverlay = document.getElementById('victoryOverlay');
-const $playAgainBtn = document.getElementById('playAgainBtn');
 const $gameOverOverlay = document.getElementById('gameOverOverlay');
-const $retryBtn = document.getElementById('retryBtn');
 const collectSound = new Audio('/assets/collect.mp3');
 const selectSound = new Audio('/assets/select.mp3');
 const bgMusic = new Audio('/assets/backgroundmusic.mp3');
@@ -59,18 +64,26 @@ const unlockAudio = () => {
 if ($soundToggle) {
     $soundToggle.addEventListener('click', () => {
         unlockAudio();
-        soundEnabled = !soundEnabled;
+        setSoundEnabled(!soundEnabled);
+    });
+}
+
+const setSoundEnabled = (enabled) => {
+    soundEnabled = enabled;
+    if ($soundToggle) {
         $soundToggle.classList.toggle('muted', !soundEnabled);
         const label = $soundToggle.querySelector('.sound-label');
         if (label) label.textContent = soundEnabled ? 'Geluid aan' : 'Geluid uit';
-        if (soundEnabled) {
-            selectSound.currentTime = 0;
-            selectSound.play().catch(() => { });
-        } else {
-            bgMusic.pause();
-        }
-    });
-}
+    }
+    if (soundEnabled) {
+        selectSound.currentTime = 0;
+        selectSound.play().catch(() => { });
+        if (!gameOver && !gamePaused) bgMusic.play().catch(() => { });
+    } else {
+        bgMusic.pause();
+    }
+    sendToController({ type: 'sound-state', enabled: soundEnabled });
+};
 
 const generateMaze = () => {
     if (!$gamePlayground) return;
@@ -177,19 +190,32 @@ const checkOrbCollision = () => {
         if (dx * dx + dy * dy < (ballRadius + ORB_RADIUS) * (ballRadius + ORB_RADIUS)) {
             orb.collected = true;
             orb.el.classList.add('collected');
-            collectSound.currentTime = 0;
-            if (soundEnabled) collectSound.play().catch(() => { });
+            if (soundEnabled) {
+                collectSound.currentTime = 0;
+                collectSound.play().catch(() => { });
+            }
+
             orbsCollected++;
             if ($orbCounter) $orbCounter.textContent = `${orbsCollected} / ${ORB_COUNT}`;
+            sendToController({ type: 'orbs-updated', count: orbsCollected, total: ORB_COUNT });
             if (orbsCollected >= ORB_COUNT) showVictory();
         }
     }
 };
 
+const sendToController = (msg) => {
+    if (dataChannel && dataChannel.readyState === 'open') {
+        dataChannel.send(JSON.stringify(msg));
+    }
+};
+
 const showVictory = () => {
     if (!$victoryOverlay) return;
+    gameOver = true;
+    if (enemyAnimId) { cancelAnimationFrame(enemyAnimId); enemyAnimId = null; }
     $victoryOverlay.classList.add('active');
     spawnConfetti();
+    sendToController({ type: 'victory' });
 };
 
 const spawnConfetti = () => {
@@ -212,13 +238,40 @@ const spawnConfetti = () => {
 const resetGame = () => {
     if ($victoryOverlay) $victoryOverlay.classList.remove('active');
     if ($gameOverOverlay) $gameOverOverlay.classList.remove('active');
+    const $pauseOverlay = document.getElementById('pauseOverlay');
+    if ($pauseOverlay) $pauseOverlay.classList.remove('active');
     gameOver = false;
+    gamePaused = false;
     ballInitialized = false;
     initBall();
 };
 
-if ($playAgainBtn) $playAgainBtn.addEventListener('click', resetGame);
-if ($retryBtn) $retryBtn.addEventListener('click', resetGame);
+// ── Pause / Resume ──
+const $pauseOverlay = document.getElementById('pauseOverlay');
+
+const pauseGame = () => {
+    if (gameOver || gamePaused) return;
+    gamePaused = true;
+    if (enemyAnimId) { cancelAnimationFrame(enemyAnimId); enemyAnimId = null; }
+    bgMusic.pause();
+    if ($pauseOverlay) $pauseOverlay.classList.add('active');
+    sendToController({ type: 'paused' });
+};
+
+const resumeGame = () => {
+    if (!gamePaused) return;
+    gamePaused = false;
+    if ($pauseOverlay) $pauseOverlay.classList.remove('active');
+    startEnemyLoop();
+    if (soundEnabled) {
+        bgMusic.play().catch(() => { });
+    }
+    sendToController({ type: 'resumed' });
+};
+
+
+
+
 
 // ── Enemies (rode bolletjes) ──
 const spawnEnemies = () => {
@@ -329,10 +382,32 @@ const moveEnemyTowardPlayer = (enemy) => {
 };
 
 const startEnemyLoop = () => {
+    const MIN_DIST = ENEMY_RADIUS * 3; // minimum separation between enemies
     const tick = () => {
-        if (gameOver || !ballInitialized) return;
+        if (gameOver || gamePaused || !ballInitialized) return;
         for (const enemy of enemies) {
             moveEnemyTowardPlayer(enemy);
+        }
+        // Push enemies apart if overlapping
+        for (let i = 0; i < enemies.length; i++) {
+            for (let j = i + 1; j < enemies.length; j++) {
+                const a = enemies[i];
+                const b = enemies[j];
+                const dx = b.x - a.x;
+                const dy = b.y - a.y;
+                const dist = Math.sqrt(dx * dx + dy * dy) || 0.1;
+                if (dist < MIN_DIST) {
+                    const overlap = (MIN_DIST - dist) / 2;
+                    const nx = dx / dist;
+                    const ny = dy / dist;
+                    a.x -= nx * overlap;
+                    a.y -= ny * overlap;
+                    b.x += nx * overlap;
+                    b.y += ny * overlap;
+                }
+            }
+        }
+        for (const enemy of enemies) {
             enemy.el.style.left = enemy.x + 'px';
             enemy.el.style.top = enemy.y + 'px';
         }
@@ -359,6 +434,7 @@ const triggerGameOver = () => {
     if (enemyAnimId) { cancelAnimationFrame(enemyAnimId); enemyAnimId = null; }
     bgMusic.pause();
     if ($gameOverOverlay) $gameOverOverlay.classList.add('active');
+    sendToController({ type: 'game-over' });
 };
 
 const renderMaze = () => {
@@ -455,7 +531,7 @@ const handleTilt = (() => {
         lastTiltTime = now;
 
         if (!$gamePlayground) return;
-        if (gameOver) return;
+        if (gameOver || gamePaused) return;
         if (!ballInitialized) return;
 
         // Update debug HUD
@@ -527,7 +603,9 @@ const startCountdown = () => {
                 overlay.classList.remove('active');
                 document.getElementById('gameScreen').classList.add('active');
                 initBall();
-                if (soundEnabled) bgMusic.play().catch(() => { });
+                if (soundEnabled) {
+                    bgMusic.play().catch(() => { });
+                }
             }, 800);
         }
     };
@@ -585,8 +663,8 @@ const answerPeerOffer = async (offer, peerId) => {
 
     peerConnection.ondatachannel = (e) => {
         console.log('Data channel received:', e.channel.label);
-        const channel = e.channel;
-        channel.onmessage = (event) => {
+        dataChannel = e.channel;
+        dataChannel.onmessage = (event) => {
             const message = JSON.parse(event.data);
             if (message.type === 'cursor') {
                 $cursor.style.display = 'block';
@@ -596,13 +674,24 @@ const answerPeerOffer = async (offer, peerId) => {
                 handleTilt(message.beta, message.gamma);
             } else if (message.type === 'countdown-ready') {
                 startCountdown();
+            } else if (message.type === 'pause') {
+                pauseGame();
+            } else if (message.type === 'resume') {
+                resumeGame();
+            } else if (message.type === 'play-again') {
+                resetGame();
+            } else if (message.type === 'toggle-sound') {
+                unlockAudio();
+                setSoundEnabled(!soundEnabled);
             }
         };
-        channel.onopen = () => {
+        dataChannel.onopen = () => {
             console.log('Data channel open!');
             $statusDot.classList.add('connected');
             // Tell the controller we're connected; it may show permission screen first
-            channel.send(JSON.stringify({ type: 'countdown-start' }));
+            dataChannel.send(JSON.stringify({ type: 'countdown-start' }));
+            dataChannel.send(JSON.stringify({ type: 'sound-state', enabled: soundEnabled }));
+            dataChannel.send(JSON.stringify({ type: 'room-code', code: roomCode }));
             $status.textContent = 'Controller verbonden!';
         };
     };
@@ -630,6 +719,14 @@ const init = () => {
         qr.addData(url);
         qr.make();
         document.getElementById('qr').innerHTML = qr.createImgTag(6);
+    });
+
+    socket.on('room-code', (code) => {
+        roomCode = code;
+        const $roomCode = document.getElementById('roomCode');
+        if ($roomCode) $roomCode.textContent = `Room: ${code}`;
+        const $gameRoomCode = document.getElementById('gameRoomCode');
+        if ($gameRoomCode) $gameRoomCode.textContent = `Room: ${code}`;
     });
 
     socket.on('peerOffer', async (myId, offer, peerId) => {

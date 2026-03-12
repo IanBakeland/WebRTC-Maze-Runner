@@ -187,6 +187,22 @@ body {
     animation: none;
 }
 
+/* ── Room code label (controller) ────────────────────── */
+.room-code-label {
+    font-family: 'Orbitron', monospace;
+    font-size: .65rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--clr-accent);
+    margin-left: .3rem;
+    padding-left: .5rem;
+    border-left: 1px solid rgba(255, 255, 255, .1);
+}
+
+.room-code-label:empty {
+    display: none;
+}
+
 @keyframes pulse-dot {
 
     0%,
@@ -295,6 +311,20 @@ body {
 .controls-header p {
     color: var(--clr-dim);
     font-size: .85rem;
+}
+
+.orb-counter {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.2rem;
+    color: var(--clr-accent);
+    margin-bottom: 2rem;
+    padding: 0.75rem 1.5rem;
+    background: rgba(0, 229, 255, .05);
+    border: 2px solid rgba(0, 229, 255, .3);
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 0 16px rgba(0, 229, 255, .15);
+    animation: fadeUp .5s .05s ease-out both;
 }
 
 .tilt-visual {
@@ -475,4 +505,237 @@ body {
     color: var(--clr-dim);
     letter-spacing: 1px;
     animation: fadeUp .5s .15s ease-out both;
+}
+
+/* ── Victory / Game-over screens ──────────────────────── */
+.result-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    animation: fadeUp .5s ease-out both;
+}
+
+.result-icon svg {
+    width: 36px;
+    height: 36px;
+    fill: none;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.victory-icon {
+    background: rgba(105, 240, 174, .1);
+    border: 2px solid rgba(105, 240, 174, .3);
+}
+
+.victory-icon svg {
+    stroke: #69f0ae;
+}
+
+.gameover-icon {
+    background: rgba(255, 82, 82, .1);
+    border: 2px solid rgba(255, 82, 82, .3);
+}
+
+.gameover-icon svg {
+    stroke: #ff5252;
+}
+
+.result-title {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    font-size: 1.3rem;
+    margin-bottom: .5rem;
+    animation: fadeUp .5s .05s ease-out both;
+}
+
+.victory-title {
+    color: #69f0ae;
+}
+
+.gameover-title {
+    color: #ff5252;
+}
+
+.result-msg {
+    font-size: .85rem;
+    color: var(--clr-dim);
+    margin-bottom: 2rem;
+    text-align: center;
+    max-width: 280px;
+    animation: fadeUp .5s .1s ease-out both;
+}
+
+.result-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: .6rem;
+    padding: .85rem 2rem;
+    border: none;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--clr-accent), var(--clr-accent2));
+    color: var(--clr-bg);
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    font-size: .85rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    box-shadow: 0 0 30px rgba(0, 229, 255, .25), 0 8px 20px rgba(0, 0, 0, .3);
+    transition: transform .15s, box-shadow .15s;
+    animation: fadeUp .5s .15s ease-out both;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.result-btn:active {
+    transform: scale(.96);
+    box-shadow: 0 0 20px rgba(0, 229, 255, .2), 0 4px 12px rgba(0, 0, 0, .3);
+}
+
+/* ── Controller action buttons row ───────────────────── */
+.ctrl-actions {
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    margin-top: 1.5rem;
+    animation: fadeUp .5s .25s ease-out both;
+}
+
+/* ── Sound toggle (controller) ───────────────────────── */
+.ctrl-sound-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border: 1px solid rgba(255, 214, 0, .35);
+    border-radius: 50%;
+    background: rgba(255, 214, 0, .08);
+    color: #ffd600;
+    cursor: pointer;
+    transition: border-color .2s, background .2s, color .2s;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.ctrl-sound-btn:active {
+    background: rgba(255, 214, 0, .15);
+    border-color: #ffd600;
+}
+
+.ctrl-sound-btn svg {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+    stroke: currentColor;
+    stroke-width: 0;
+}
+
+.ctrl-sound-btn .sound-off line {
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+}
+
+.ctrl-sound-btn .sound-off path {
+    fill: currentColor;
+}
+
+.ctrl-sound-btn .sound-off {
+    display: none;
+}
+
+.ctrl-sound-btn .sound-on {
+    display: block;
+}
+
+.ctrl-sound-btn.muted .sound-on {
+    display: none;
+}
+
+.ctrl-sound-btn.muted .sound-off {
+    display: block;
+}
+
+.ctrl-sound-btn.muted {
+    color: var(--clr-dim);
+    border-color: rgba(255, 255, 255, .08);
+    background: rgba(255, 255, 255, .04);
+}
+
+
+/* ── Pause button (controls screen) ──────────────────── */
+.ctrl-pause-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .65rem 1.4rem;
+    border: 1px solid rgba(255, 255, 255, .1);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .04);
+    color: var(--clr-dim);
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 600;
+    font-size: .72rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: border-color .2s, color .2s, background .2s;
+    -webkit-tap-highlight-color: transparent;
+    animation: fadeUp .5s .25s ease-out both;
+}
+
+.ctrl-pause-btn:active {
+    background: rgba(255, 255, 255, .08);
+    border-color: var(--clr-accent);
+    color: var(--clr-accent);
+}
+
+.ctrl-pause-btn svg {
+    width: 14px;
+    height: 14px;
+    fill: currentColor;
+}
+
+/* ── Paused screen ───────────────────────────────────── */
+.pause-screen-icon {
+    background: rgba(0, 229, 255, .08);
+    border: 2px solid rgba(0, 229, 255, .25);
+}
+
+.pause-screen-icon svg {
+    fill: var(--clr-accent);
+    stroke: none;
+}
+
+.pause-screen-title {
+    color: var(--clr-accent);
+}
+
+.ctrl-restart-btn {
+    margin-top: .6rem;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, .1);
+    color: var(--clr-dim);
+    box-shadow: none;
+}
+
+.ctrl-restart-btn:active {
+    border-color: rgba(255, 255, 255, .2);
+    color: var(--clr-text);
+}
+
+.ctrl-restart-btn.confirm {
+    border-color: rgba(255, 82, 82, .5);
+    color: #ff5252;
+    animation: pulse-dot 1.6s ease-in-out infinite;
+}
+
+.ctrl-restart-btn.confirm:active {
+    border-color: #ff5252;
+    background: rgba(255, 82, 82, .1);
 }

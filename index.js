@@ -18,8 +18,25 @@ app.use((req, res, next) => {
 });
 app.use(express.static('public'));
 
+// ── Room code generation ──
+const ROOM_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no ambiguous chars
+const roomCodes = new Map(); // socketId → code
+
+const generateRoomCode = () => {
+    let code;
+    const existing = new Set(roomCodes.values());
+    do {
+        code = '';
+        for (let i = 0; i < 4; i++) code += ROOM_CHARS[Math.floor(Math.random() * ROOM_CHARS.length)];
+    } while (existing.has(code));
+    return code;
+};
+
 io.on('connection', socket => {
-    console.log(`Connection: ${socket.id}`);
+    const roomCode = generateRoomCode();
+    roomCodes.set(socket.id, roomCode);
+    console.log(`Connection: ${socket.id} (Room: ${roomCode})`);
+    socket.emit('room-code', roomCode);
 
     socket.on('peerOffer', (peerId, offer) => {
         console.log(`Received peerOffer from ${socket.id} to ${peerId}`);
@@ -38,6 +55,7 @@ io.on('connection', socket => {
 
     socket.on('disconnect', () => {
         console.log(`Disconnected: ${socket.id}`);
+        roomCodes.delete(socket.id);
     });
 });
 
