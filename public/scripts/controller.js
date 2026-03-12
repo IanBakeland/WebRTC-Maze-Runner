@@ -205,6 +205,9 @@ const callPeer = async (peerId) => {
             startOrientation();
         } else if (message.type === 'game-restart') {
             handlePlayAgain();
+        } else if (message.type === 'room-code') {
+            const $label = document.getElementById('roomCodeLabel');
+            if ($label) $label.textContent = `Room: ${message.code}`;
         } else if (message.type === 'sound-state') {
             const $ctrlSoundBtn = document.getElementById('ctrlSoundBtn');
             if ($ctrlSoundBtn) $ctrlSoundBtn.classList.toggle('muted', !message.enabled);

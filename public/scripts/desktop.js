@@ -11,6 +11,7 @@ createParticles(25);
 let socket;
 let peerConnection;
 let dataChannel;
+let roomCode = '----';
 
 const servers = {
     iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
@@ -668,6 +669,7 @@ const answerPeerOffer = async (offer, peerId) => {
             // Tell the controller we're connected; it may show permission screen first
             dataChannel.send(JSON.stringify({ type: 'countdown-start' }));
             dataChannel.send(JSON.stringify({ type: 'sound-state', enabled: soundEnabled }));
+            dataChannel.send(JSON.stringify({ type: 'room-code', code: roomCode }));
             $status.textContent = 'Controller verbonden!';
         };
     };
@@ -695,6 +697,14 @@ const init = () => {
         qr.addData(url);
         qr.make();
         document.getElementById('qr').innerHTML = qr.createImgTag(6);
+    });
+
+    socket.on('room-code', (code) => {
+        roomCode = code;
+        const $roomCode = document.getElementById('roomCode');
+        if ($roomCode) $roomCode.textContent = `Room: ${code}`;
+        const $gameRoomCode = document.getElementById('gameRoomCode');
+        if ($gameRoomCode) $gameRoomCode.textContent = `Room: ${code}`;
     });
 
     socket.on('peerOffer', async (myId, offer, peerId) => {
