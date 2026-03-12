@@ -1,6 +1,4 @@
-(function () {
-    const script = document.currentScript;
-    const count = parseInt(script.dataset.count) || 20;
+export const createParticles = (count = 20) => {
     for (let i = 0; i < count; i++) {
         const p = document.createElement('div');
         p.className = 'particle';
@@ -16,4 +14,4 @@
         `;
         document.body.appendChild(p);
     }
-})();
+};

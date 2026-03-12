@@ -1,9 +1,13 @@
+import { createParticles } from './particles.js';
+
 // ── Gedeelde state en DOM-referenties voor de controller ──
 let socket, peerConnection, dataChannel, targetSocketId;
 
 const $status = document.getElementById('status');
 const $statusDot = document.getElementById('statusDot');
 const $statusText = document.getElementById('statusText');
+
+createParticles(15);
 
 const servers = {
     iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]

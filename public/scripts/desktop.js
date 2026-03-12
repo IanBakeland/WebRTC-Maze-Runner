@@ -1,8 +1,12 @@
+import { createParticles } from './particles.js';
+
 // ── Gedeelde state en DOM-referenties voor het desktop-scherm ──
 const $status = document.getElementById('status');
 const $statusDot = document.getElementById('statusDot');
 const $cursor = document.getElementById('cursor');
 const $controllerLink = document.getElementById('controllerLink');
+
+createParticles(25);
 
 let socket;
 let peerConnection;
