@@ -429,34 +429,76 @@ Deze week heb ik het echte speelbare doolhof-spel gebouwd: een recursief gegener
 
 ---
 
-- **Refactoring: Inline JS naar aparte files**  
-  De `desktop-ball.js`, `desktop-connection.js`, en `desktop-countdown.js` bestonden, maar alle game-logica zat nog inline in `desktop.js`. Dit maakte het bestand onleesbaar (500+ regels). Ik heb de code gesplitst:
-  - **desktop-maze.js** → doolhof genereren & renderen
-  - **desktop-orbs.js** → orbs spawnen, collision, HUD
-  - **desktop-enemies.js** → vijanden AI & game over
-  - **desktop-audio.js** → geluid- en muziekbeheer
-  
-  Dit maakt de codebase veel beter onderhoudbaar en het wordt duidelijk wat waar hoort.
+- **Refactoring: Inline JS naar aparte files & onnodige code verwijderd**  
+  Alle game-logica zat nog inline in `desktop.js`. Dit maakte het bestand onleesbaar (500+ regels). Ik heb de code opgeschoond en onnodige globale variabelen verwijderd.
 
   <details>
-  <summary>🤖 AI Prompt — Hoe test ik of mijn window._dataChannel beter kan?</summary>
+  <summary>🤖 AI Prompt — window._dataChannel: wat doet dit?</summary>
 
   > **Mijn prompt:**  
-  > *"Ik zie window._dataChannel op twee plekken in mijn code. Wat doet dit en heeft dit nut als ik het zie?"*
+  > *"Wat doet dit en heeft dit nut in mijn code? `window._dataChannel = null;`"*
 
   **Copilot antwoordde:**  
-  window._dataChannel wordt gezet op `null` bij disconnect, en weer gevuld bij verbinding. Maar het wordt **nergens anders gelezen** — geen enkel script leest deze globale variabele. Dit is dode code.
+  `window._dataChannel` wordt gezet op `null` wanneer de controller disconnect (na de 4-seconden countdown). Op desktop-connection.js:68 wordt het weer gevuld met het actieve channel wanneer een nieuwe verbinding opkomt.
 
-  **Aanbeveling:** Verwijder beide lijnen (desktop-connection.js:68 en de `null` toewijzing bij disconnect). Dit is een overblijfsel van een eerdere opzet.
+  **Maar: het wordt nergens anders gelezen.** Geen enkel ander script in je project leest `window._dataChannel`. Het wordt opgeslagen op `window` (als globale variabele), wat suggereert dat het bedoeld was om vanuit andere bestanden (bijv. `desktop-ball.js` of `desktop-countdown.js`) het data channel te kunnen gebruiken — maar dat gebeurt momenteel niet.
 
-  **Bonus tip:** Controleer of je dataChannel variabele (zonder underscore, de echte) nog wel gebruikt wordt. Dit is het werkende data channel dat je echt nodig hebt — deze mag NIET weg!
+  **Conclusie:** In de huidige code heeft het **geen nut**. Het is ofwel:
+  - Overblijfsel van een eerdere opzet, of
+  - Voorbereid voor toekomstig gebruik dat er nooit gekomen is.
+
+  Als je nergens anders `window._dataChannel` nodig hebt, kun je beide regels (27 en 68) veilig verwijderen.
+  </details>
+
+  <details>
+  <summary>🤖 AI Prompt — Mag ik dataChannel ook verwijderen?</summary>
+
+  > **Mijn vervolgprompt:**  
+  > *"Soms zie ik dataChannel. Zou het erg zijn als ik het verwijder?"*
+
+  **Copilot antwoordde:**  
+  Nee, `dataChannel` mag je **absoluut niet** verwijderen! Dit is een **andere** variabele dan de `window._dataChannel` die we eerder verwijderd hebben.
+
+  Deze `dataChannel` is het kernstuk van de communicatie tussen controller en desktop. Het wordt overal actief gebruikt:
+
+  | Locatie           | Wat het doet                              |
+  | ----------------- | ----------------------------------------- |
+  | controller.js:2   | Declaratie als gedeelde variabele         |
+  | controller.js:63  | Tilt-data versturen naar desktop          |
+  | controller.js:96  | `countdown-ready` bericht sturen          |
+  | controller.js:155 | Op `null` zetten bij disconnect (cleanup) |
+  | controller.js:164 | Aanmaken van het WebRTC data channel      |
+  | controller.js:200 | Cursor-data sturen bij mouse/touch        |
+
+  Zonder `dataChannel` kan de controller **niets** naar de desktop sturen — geen tilt-data, geen countdown-signaal, geen cursor-positie. Het hele spel zou niet werken.
+
+  **Samengevat:** De vorige `window._dataChannel` was een ongebruikte kopie die nergens gelezen werd. Deze `dataChannel` is de echte — laat die staan.
+
+  **Gebruikte code (controller.js):**
+  ```js
+  // Declaratie bovenaan — gedeelde variabele voor de hele controller
+  let socket, peerConnection, dataChannel, targetSocketId;
+
+  // Tilt-data versturen via datachannel
+  if (dataChannel && dataChannel.readyState === 'open') {
+      dataChannel.send(JSON.stringify({ type: 'tilt', beta, gamma }));
+  }
+
+  // Countdown-ready bericht sturen
+  if (dataChannel && dataChannel.readyState === 'open') {
+      dataChannel.send(JSON.stringify({ type: 'countdown-ready' }));
+  }
+
+  // Aanmaken van het WebRTC data channel
+  dataChannel = peerConnection.createDataChannel('control');
+  ```
   </details>
 
 ---
 
 - **Code cleanup & performance optimalisaties**
   
-  De AI wees op vijf verbeteringen. Ik heb drie ervan prio gegeven:
+  De AI wees op vijf verbeteringen. Ik heb ze allemaal doorgevoerd:
 
   <details>
   <summary>🤖 Code Review — Performance improvements</summary>
@@ -464,23 +506,73 @@ Deze week heb ik het echte speelbare doolhof-spel gebouwd: een recursief gegener
   > **Mijn prompt:**  
   > *"Als je de code bekijkt kan er iets beter of opgeschoond worden?"*
 
-  **Copilot antwoordde met een prioriteitslijst:**
+  **Copilot antwoordde:**  
+  De code is al vrij clean, maar er zijn een paar dingen die beter kunnen:
 
-  | #   | Issue                                                | Impact       | Status  |
-  | --- | ---------------------------------------------------- | ------------ | ------- |
-  | 1   | Status tekst direct overschreven (Desktop connecten) | Bug          | ✅ Fixed |
-  | 2   | DOM lookups in hot paths (handleTilt 30-60x/s)       | Performance  | ✅ Fixed |
-  | 3   | getUrlParameter moderniseren naar URLSearchParams    | Leesbaarheid | ✅ Fixed |
-  | 4   | Ongebruikt clients object verwijderd                 | Dode code    | ✅ Fixed |
-  | 5   | Ongebruikte channel parameter                        | Cleanup      | ✅ Fixed |
+  **1. Bug: status wordt direct overschreven (desktop.js:169-171)**  
+  "Controller verbonden!" is **nooit zichtbaar** omdat het synchroon meteen weer overschreven wordt. Je moet ofwel de eerste regel verwijderen, ofwel een korte setTimeout gebruiken als je het even wil tonen.
 
-  **Wat ik deed:**
-  - Status bug: eerste regel "Controller verbonden!" verwijderd die synchroon overschreven werd.
-  - DOM caching: `gamePlayground`, `gameBall`, `tiltDot` nu eenmalig bovenaan gecached i.p.v. per frame opnieuw gezocht.
-  - URLSearchParams: `getUrlParameter()` vervangen door `new URLSearchParams(window.location.search).get()`.
-  - `clients` object uit `index.js` verwijderd — het wordt alleen gevuld/geleegd, nooit gelezen.
+  **2. getUrlParameter kan simpeler (controller.js:12-17)**  
+  Je gebruikt een complexe regex, maar `URLSearchParams` doet hetzelfde in 1 regel.
 
-  Deze optimalisaties speelden samen met de volgende grote veranderingen (maze rendering, enemy AI) waardoor de game performant bleef.
+  **3. Herhaalde DOM-lookups in hot paths**  
+  In `handleTilt` worden `gamePlayground`, `gameBall` en `tiltDebug` **elke keer opnieuw opgezocht** — dit wordt tientallen keren per seconde aangeroepen. Beter om ze bovenaan éénmalig te cachen. Hetzelfde voor `tiltDot` in de orientationHandler (controller.js:55).
+
+  **4. Ongebruikt clients object (index.js:22)**  
+  Dit wordt alleen gevuld en verwijderd, maar **nergens gelezen**. Het heeft momenteel geen functie en kan weg.
+
+  **5. startCountdown parameter ongebruikt (desktop.js:74)**  
+  `startCountdown` ontvangt `channel` als parameter, maar doet er niets mee. De parameter kan weg.
+
+  | #   | Issue                        | Impact                                  |
+  | --- | ---------------------------- | --------------------------------------- |
+  | 1   | Status direct overschreven   | Bug — tekst nooit zichtbaar             |
+  | 2   | DOM lookups in hot path      | Performance — onnodige queries 30-60x/s |
+  | 3   | getUrlParameter moderniseren | Leesbaarheid                            |
+  | 4   | clients object verwijderen   | Dode code                               |
+  | 5   | Ongebruikte channel param    | Cleanup                                 |
+
+  **Wat ik deed (toegevoegde/aangepaste code):**
+
+  DOM caching — eenmalig bovenaan (desktop.js):
+  ```js
+  const $gamePlayground = document.getElementById('gamePlayground');
+  const $gameBall = document.getElementById('gameBall');
+  const $tiltDebug = document.getElementById('tiltDebug');
+  ```
+
+  DOM caching — controller (controller.js):
+  ```js
+  const $tiltDot = document.getElementById('tiltDot');
+  ```
+
+  URLSearchParams i.p.v. regex (controller.js):
+  ```js
+  const getUrlParameter = name => new URLSearchParams(location.search).get(name) || false;
+  ```
+
+  Clients object verwijderd uit index.js — de server forwardt nu alleen nog events:
+  ```js
+  io.on('connection', socket => {
+      console.log(`Connection: ${socket.id}`);
+
+      socket.on('peerOffer', (peerId, offer) => {
+          io.to(peerId).emit('peerOffer', peerId, offer, socket.id);
+      });
+
+      socket.on('peerAnswer', (peerId, answer) => {
+          io.to(peerId).emit('peerAnswer', peerId, answer, socket.id);
+      });
+
+      socket.on('peerIce', (peerId, candidate) => {
+          io.to(peerId).emit('peerIce', peerId, candidate, socket.id);
+      });
+
+      socket.on('disconnect', () => {
+          console.log(`Disconnected: ${socket.id}`);
+      });
+  });
+  ```
   </details>
 
 ---
@@ -496,32 +588,149 @@ Deze week heb ik het echte speelbare doolhof-spel gebouwd: een recursief gegener
   > *"Ik zou graag een doolhof gaan gebruiken in mijn code. Hoe zou ik best hieraan beginnen?"*
 
   **Gemini antwoordde:**  
-  Voor een grid-based game als jij hebt, is een **2D Array** met `0` (pad) en `1` (muur) de beste start. Collision detection: check of de volgende positie een muur is voordat je de bal verplaatst.
+  Om een doolhof te bouwen, is de belangrijkste keuze hoe je het opslaat in je code. Omdat je al een bewegend balletje hebt, is een **Grid-based systeem** de beste start.
 
-  Extra tip: **Recursive Backtracking** genereert automatisch unieke doolhoven (veel beter dan handmatig getekend). Zie MDN en online tutorials voor het algoritme zelf.
+  **1. De Datastructuur ("De Blauwdruk"):**  
+  De simpelste manier is een **2D Array**. Elk getal in de array staat voor een type blokje (`1` = muur, `0` = pad).
+
+  ```js
+  const maze = [
+    [1, 1, 1, 1, 1, 1, 1],
+    [1, 0, 0, 0, 0, 0, 1],
+    [1, 0, 1, 1, 1, 0, 1],
+    [1, 0, 1, 0, 0, 0, 1],
+    [1, 1, 1, 1, 1, 1, 1]
+  ];
+  ```
+
+  **2. Tekenmethode: Canvas vs. DOM**  
+  Omdat je een game maakt, raad ik **HTML5 Canvas** aan. Het is sneller en je hebt meer controle over de pixels.
+
+  **3. Collision Detection (Muren raken)**  
+  Voordat je het balletje verplaatst, check je: "Is de plek waar ik naartoe ga een 0 of een 1?"
+
+  ```js
+  function canMove(newX, newY) {
+      const col = Math.floor(newX / cellSize);
+      const row = Math.floor(newY / cellSize);
+      if (maze[row] && maze[row][col] === 1) {
+          return false; // Je raakt een muur!
+      }
+      return true;
+  }
+  ```
+
+  **4. Concreet advies:** Begin eerst statisch (hardcoded array) zodat je de besturing en collision kunt testen. Maak een `drawMaze()` functie die de array op je canvas tekent. Pas je `handleTilt` aan zodat deze de `canMove()` check gebruikt.
+  </details>
+
+  <details>
+  <summary>🤖 AI Prompt — Recursive Backtracking</summary>
 
   > **Mijn vervolgprompt:**  
   > *"Ik zag online recursive backtrack. Zou dit niet handig zijn?"*
 
   **Gemini antwoordde:**  
-  Ja! Dit brengt je naar bonuspunten-niveau. Elk keer als je de pagina ververst, krijgt de speler een compleet nieuw doolhof. Het algoritme is razendsnel, ook voor grote grids.
+  Dat is een uitstekend idee! **Recursive Backtracking** is een van de meest populaire algoritmes voor games omdat het altijd een "perfecte maze" genereert: een doolhof waarin elk punt bereikbaar is en er precies één pad is tussen twee willekeurige punten.
 
-  **Stappenplan:**
-  1. Maak een grid vol muren (`1`).
-  2. Draai het algoritme — het "graaft" paden (`0`).
-  3. Render met Canvas.
+  Dit tilt je project direct naar een hoger niveau (**bonuspunten**-waardig), omdat je technologie gebruikt die buiten het standaard curriculum valt.
+
+  **Hoe werkt het algoritme?**  
+  Vergelijk het met een ontdekkingsreiziger in een donker gangenstelsel:
+  1. **Start:** Kies een willekeurige cel en markeer deze als "bezocht".
+  2. **Kies:** Kijk of er onbezochte buren zijn (noord, oost, zuid, west).
+  3. **Bezoek:** Kies een willekeurige buur, haal de muur tussen de huidige cel en de buur weg, en ga naar die cel.
+  4. **Backtrack:** Als je vastloopt (geen onbezochte buren meer), ga je een stapje terug tot je weer een cel vindt die wél onbezochte buren heeft.
+  5. **Stop:** Als je weer terug bent bij het begin en alles is bezocht.
+
+  **Waarom handig voor jouw project?**
+  - **Herspeelbaarheid:** Elke refresh = nieuw doolhof.
+  - **Gegarandeerde oplossing:** Nooit een onmogelijk doolhof.
+  - **Performance:** Razendsnel, zelfs voor grote grids.
   </details>
 
-  **Implementatie:**
-  - `generateMaze()` (desktop-maze.js) — Initialiseert een grid vol muren, draait recursive backtracking met Noord-Oost-Zuid-West richtingen.
-  - `drawMaze()` (desktop-maze.js) — Render het rooster als **Canvas** i.p.v. honderden DOM divs (meer hieronder bij performance).
-  - Celgrootte: `Math.floor(gamePlayground.clientWidth / 25)` — dynamisch zodat het doolhof altijd op het scherm past.
+  <details>
+  <summary>🤖 AI Prompt — Doolhof implementeren</summary>
+
+  > **Mijn implementatie-prompt:**  
+  > *"Wanneer de telefoon verbonden is kom je op het spelgedeelte. Graag zou ik willen dat er een doolhof is. Maak gebruik van recursive backtracker voor het doolhof te gaan maken."*
+
+  **Copilot antwoordde:**  
+  Copilot implementeerde de volledige maze generation, rendering op canvas, en collision detection. Het doolhof wordt bij elke game-start opnieuw gegenereerd.
+  </details>
+
+  **Toegevoegde code — `generateMaze()` (desktop.js):**
+  ```js
+  const generateMaze = () => {
+      if (!$gamePlayground) return;
+      const w = $gamePlayground.clientWidth;
+      const h = $gamePlayground.clientHeight;
+      cellSize = 120;
+      mazeCols = Math.floor(w / cellSize);
+      mazeRows = Math.floor(h / cellSize);
+      if (mazeCols < 2) mazeCols = 2;
+      if (mazeRows < 2) mazeRows = 2;
+      mazeOffsetX = (w - mazeCols * cellSize) / 2;
+      mazeOffsetY = (h - mazeRows * cellSize) / 2;
+
+      // Init grid — all walls present
+      mazeGrid = [];
+      for (let r = 0; r < mazeRows; r++) {
+          mazeGrid[r] = [];
+          for (let c = 0; c < mazeCols; c++) {
+              mazeGrid[r][c] = { top: true, right: true, bottom: true, left: true, visited: false };
+          }
+      }
+
+      // Recursive backtracker
+      const stack = [{ r: 0, c: 0 }];
+      mazeGrid[0][0].visited = true;
+
+      while (stack.length > 0) {
+          const cur = stack[stack.length - 1];
+          const nb = [];
+          if (cur.r > 0 && !mazeGrid[cur.r - 1][cur.c].visited) nb.push({ r: cur.r - 1, c: cur.c });
+          if (cur.r < mazeRows - 1 && !mazeGrid[cur.r + 1][cur.c].visited) nb.push({ r: cur.r + 1, c: cur.c });
+          if (cur.c > 0 && !mazeGrid[cur.r][cur.c - 1].visited) nb.push({ r: cur.r, c: cur.c - 1 });
+          if (cur.c < mazeCols - 1 && !mazeGrid[cur.r][cur.c + 1].visited) nb.push({ r: cur.r, c: cur.c + 1 });
+
+          if (nb.length === 0) {
+              stack.pop();
+          } else {
+              const next = nb[Math.floor(Math.random() * nb.length)];
+              const dr = next.r - cur.r;
+              const dc = next.c - cur.c;
+              if (dr === -1) { mazeGrid[cur.r][cur.c].top = false; mazeGrid[next.r][next.c].bottom = false; }
+              if (dr === 1)  { mazeGrid[cur.r][cur.c].bottom = false; mazeGrid[next.r][next.c].top = false; }
+              if (dc === -1) { mazeGrid[cur.r][cur.c].left = false; mazeGrid[next.r][next.c].right = false; }
+              if (dc === 1)  { mazeGrid[cur.r][cur.c].right = false; mazeGrid[next.r][next.c].left = false; }
+              mazeGrid[next.r][next.c].visited = true;
+              stack.push(next);
+          }
+      }
+
+      // Remove extra walls to create loops (multiple paths)
+      const extraOpenings = Math.floor(mazeRows * mazeCols * 0.35);
+      for (let i = 0; i < extraOpenings; i++) {
+          const r = Math.floor(Math.random() * mazeRows);
+          const c = Math.floor(Math.random() * mazeCols);
+          const dir = Math.floor(Math.random() * 4);
+          if (dir === 0 && r > 0)              { mazeGrid[r][c].top = false; mazeGrid[r - 1][c].bottom = false; }
+          if (dir === 1 && r < mazeRows - 1)   { mazeGrid[r][c].bottom = false; mazeGrid[r + 1][c].top = false; }
+          if (dir === 2 && c > 0)              { mazeGrid[r][c].left = false; mazeGrid[r][c - 1].right = false; }
+          if (dir === 3 && c < mazeCols - 1)   { mazeGrid[r][c].right = false; mazeGrid[r][c + 1].left = false; }
+      }
+
+      renderMaze();
+      spawnOrbs();
+      spawnEnemies();
+  };
+  ```
 
 ---
 
 - **Canvas rendering i.p.v. DOM (Massive performance fix)**
   
-  Eerste iteratie: Ik renderde muren als 350+ `<div>` elementen, elk met `box-shadow` blur. Dit was een **disaster voor performance** — blijkbaar verbruikt GPU-rendering van shadows veel meer dan verwacht.
+  Eerste iteratie: Ik renderde muren als 350+ `<div>` elementen, elk met `box-shadow` blur. Dit was een **disaster voor performance** — GPU-rendering van shadows verbruikt veel meer dan verwacht.
 
   <details>
   <summary>🤖 Problem: Lag door het doolhof</summary>
@@ -537,30 +746,90 @@ Deze week heb ik het echte speelbare doolhof-spel gebouwd: een recursief gegener
   **Oplossing:** Muren als 1 `<canvas>` element renderen i.p.v. honderden divs. Canvas is veel sneller voor batch-rendering.
   </details>
 
-  **Wat ik deed:**
-  - Vervangen: 350+ divs → 1 `<canvas>` element met native drawing API.
-  - Muren getekend als paarse neon-lijnen (3px dik) recht uit de array.
-  - Resultaat: Lag weg, frame rate stabiel.
+  **Toegevoegde code — `renderMaze()` (desktop.js):**
+  ```js
+  const renderMaze = () => {
+      const canvas = document.getElementById('mazeCanvas');
+      if (!canvas) return;
+      const w = $gamePlayground.clientWidth;
+      const h = $gamePlayground.clientHeight;
+      canvas.width = w;
+      canvas.height = h;
+      canvas.style.cssText = 'position:absolute;inset:0;z-index:5;';
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, w, h);
+      ctx.strokeStyle = 'rgba(124, 77, 255, 0.55)';
+      ctx.lineWidth = 6;
+      ctx.lineCap = 'round';
+
+      for (let r = 0; r < mazeRows; r++) {
+          for (let c = 0; c < mazeCols; c++) {
+              const cell = mazeGrid[r][c];
+              const x = mazeOffsetX + c * cellSize;
+              const y = mazeOffsetY + r * cellSize;
+              if (cell.top)   { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + cellSize, y); ctx.stroke(); }
+              if (cell.left)  { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + cellSize); ctx.stroke(); }
+              if (c === mazeCols - 1 && cell.right)  { ctx.beginPath(); ctx.moveTo(x + cellSize, y); ctx.lineTo(x + cellSize, y + cellSize); ctx.stroke(); }
+              if (r === mazeRows - 1 && cell.bottom) { ctx.beginPath(); ctx.moveTo(x, y + cellSize); ctx.lineTo(x + cellSize, y + cellSize); ctx.stroke(); }
+          }
+      }
+  };
+  ```
+
+  Resultaat: 350+ DOM divs → 1 `<canvas>` element. Lag weg, frame rate stabiel.
 
 ---
 
 - **Collision detection (Balletje botst tegen muren)**
   
-  Voor je het balletje mag verplaatsen, checken we eerst: "Is de volgende cel een pad (0) of een muur (1)?" Als het een muur is, zetten we de snelheid op 0 zodat het balletje niet door muren heen glijdt.
+  Voor je het balletje mag verplaatsen, checken we per muur van de huidige cel: "Zit de bal te dicht bij een muur?" Als dat zo is, wordt de bal teruggeduwd en de snelheid op 0 gezet.
 
-  ```javascript
-  function checkCollision(newX, newY) {
-      const col = Math.floor(newX / cellSize);
-      const row = Math.floor(newY / cellSize);
-      
-      if (maze[row] && maze[row][col] === 0) {
-          return false; // Mag hier heen
-      }
-      return true; // Muur of buiten grid
-  }
+  **Toegevoegde code — `checkMazeCollision()` (desktop.js):**
+  ```js
+  const checkMazeCollision = (newX, newY, radius) => {
+      if (mazeGrid.length === 0) return { x: newX, y: newY };
+
+      let x = newX;
+      let y = newY;
+
+      // Clamp to maze outer bounds
+      const left = mazeOffsetX + radius;
+      const right = mazeOffsetX + mazeCols * cellSize - radius;
+      const top = mazeOffsetY + radius;
+      const bottom = mazeOffsetY + mazeRows * cellSize - radius;
+      x = Math.max(left, Math.min(right, x));
+      y = Math.max(top, Math.min(bottom, y));
+
+      // Grid cell the ball center is in
+      const col = Math.floor((x - mazeOffsetX) / cellSize);
+      const row = Math.floor((y - mazeOffsetY) / cellSize);
+      const safeCol = Math.max(0, Math.min(mazeCols - 1, col));
+      const safeRow = Math.max(0, Math.min(mazeRows - 1, row));
+      const cell = mazeGrid[safeRow][safeCol];
+
+      const cellLeft = mazeOffsetX + safeCol * cellSize;
+      const cellTop = mazeOffsetY + safeRow * cellSize;
+      const cellRight = cellLeft + cellSize;
+      const cellBottom = cellTop + cellSize;
+
+      // Push ball away from walls
+      if (cell.top && y - radius < cellTop) y = cellTop + radius;
+      if (cell.bottom && y + radius > cellBottom) y = cellBottom - radius;
+      if (cell.left && x - radius < cellLeft) x = cellLeft + radius;
+      if (cell.right && x + radius > cellRight) x = cellRight - radius;
+
+      return { x, y };
+  };
   ```
 
-  Dit roept `handleTilt()` aan vóór elke positie-update.
+  Dit wordt aangeroepen in `handleTilt()` vóór elke positie-update:
+  ```js
+  const clamped = checkMazeCollision(ballState.x, ballState.y, ballRadius);
+  if (clamped.x !== ballState.x) ballState.vx = 0;
+  if (clamped.y !== ballState.y) ballState.vy = 0;
+  ballState.x = clamped.x;
+  ballState.y = clamped.y;
+  ```
 
 ---
 
@@ -572,25 +841,55 @@ Deze week heb ik het echte speelbare doolhof-spel gebouwd: een recursief gegener
   <summary>🤖 Performance: Throttling tilt-data</summary>
 
   De AI adviseerde om tilt-events te beperken naar ~30fps omdat dat ruim genoeg is voor smooth gameplay. Dit halveert de network traffic en CPU load.
-
-  **Implementatie:**
-  - **Controller-zijde** (controller.js): Enkel elke 33ms een bericht sturen.
-  - **Desktop-zijde** (desktop.js): Binnenkomende berichten ook begrenzen tot 60fps.
-
-  Dit voelt nog even responsive, maar minder CPU-verspilling.
   </details>
+
+  **Toegevoegde code — Controller-zijde throttling (controller.js):**
+  ```js
+  let lastSendTime = 0;
+  const SEND_INTERVAL = 33; // ~30fps max over datachannel
+
+  orientationHandler = (e) => {
+      const beta = e.beta;
+      const gamma = e.gamma;
+      if (beta === null || gamma === null) return;
+
+      // Throttle data channel sends
+      const now = performance.now();
+      if (now - lastSendTime < SEND_INTERVAL) return;
+      lastSendTime = now;
+
+      if (dataChannel && dataChannel.readyState === 'open') {
+          dataChannel.send(JSON.stringify({ type: 'tilt', beta, gamma }));
+      }
+  };
+  ```
+
+  **Desktop-zijde throttling (desktop.js):**
+  ```js
+  const handleTilt = (() => {
+      let lastTiltTime = 0;
+      const TILT_INTERVAL = 16; // ~60fps cap
+
+      return (beta, gamma) => {
+          const now = performance.now();
+          if (now - lastTiltTime < TILT_INTERVAL) return;
+          lastTiltTime = now;
+          // ... bal-physics en collision ...
+      };
+  })();
+  ```
 
 ---
 
 - **8 gele verzamelbare orbs met HUD counter**
   
-  Het doel van het spel: verzamel alle 8 gele bollen ("orbs"). Ze spannen willekeurig in het doolhof, maar nooit in de startcel van de speler.
+  Het doel van het spel: verzamel alle 8 gele bollen ("orbs"). Ze spawnen willekeurig in het doolhof, maar nooit in de startcel van de speler.
 
   <details>
   <summary>🤖 AI Prompt — Orbs implementeren</summary>
 
   > **Mijn prompt:**  
-  > *"Is het mogelijk om gele bollen te gaan plaatsen doorheen de doolhof (max 8) die je kan verzamelen? Laat dit ook tonen in de UI (1 van de 8)"*
+  > *"Is het mogelijk om gele bollen te gaan plaatsen doorheen de doolhof (max 8) die je kan verzamelen? Laat dit ook tonen in de UI (bijvoorbeeld 1 van de 8)"*
 
   **Copilot antwoordde:**  
   Simpel systeem:
@@ -600,12 +899,60 @@ Deze week heb ik het echte speelbare doolhof-spel gebouwd: een recursief gegener
   4. HUD: Toon "3 / 8" orbs collected.
   </details>
 
-  **Implementatie:**
-  - `spawnOrbs()` → Kiest 8 random cells, slaat startcel over.
-  - Collision: `checkOrbCollision()` in elke tilt frame.
-  - HUD: Gele "pill" in topbar toont `current / 8`.
-  - Animatie: Orbs faden weg + schalen bij collect met `.collected` class.
-  - CSS: Gele bollen (#ffd600) met glow effect, passend bij thema.
+  **Toegevoegde code — `spawnOrbs()` (desktop.js):**
+  ```js
+  const spawnOrbs = () => {
+      $gamePlayground.querySelectorAll('.maze-orb').forEach(el => el.remove());
+      orbs = [];
+      orbsCollected = 0;
+      if ($orbCounter) $orbCounter.textContent = `0 / ${ORB_COUNT}`;
+
+      const centerCol = Math.floor(mazeCols / 2);
+      const centerRow = Math.floor(mazeRows / 2);
+      const usedCells = new Set();
+      usedCells.add(`${centerRow},${centerCol}`);
+
+      while (orbs.length < ORB_COUNT && usedCells.size < mazeRows * mazeCols) {
+          const r = Math.floor(Math.random() * mazeRows);
+          const c = Math.floor(Math.random() * mazeCols);
+          const key = `${r},${c}`;
+          if (usedCells.has(key)) continue;
+          usedCells.add(key);
+
+          const x = mazeOffsetX + c * cellSize + cellSize / 2;
+          const y = mazeOffsetY + r * cellSize + cellSize / 2;
+
+          const el = document.createElement('div');
+          el.className = 'maze-orb';
+          el.style.left = x + 'px';
+          el.style.top = y + 'px';
+          $gamePlayground.appendChild(el);
+
+          orbs.push({ x, y, el, collected: false });
+      }
+  };
+  ```
+
+  **Collision detection — `checkOrbCollision()` (desktop.js):**
+  ```js
+  const checkOrbCollision = () => {
+      const ballRadius = 12;
+      for (const orb of orbs) {
+          if (orb.collected) continue;
+          const dx = ballState.x - orb.x;
+          const dy = ballState.y - orb.y;
+          if (dx * dx + dy * dy < (ballRadius + ORB_RADIUS) * (ballRadius + ORB_RADIUS)) {
+              orb.collected = true;
+              orb.el.classList.add('collected');
+              collectSound.currentTime = 0;
+              if (soundEnabled) collectSound.play().catch(() => { });
+              orbsCollected++;
+              if ($orbCounter) $orbCounter.textContent = `${orbsCollected} / ${ORB_COUNT}`;
+              if (orbsCollected >= ORB_COUNT) showVictory();
+          }
+      }
+  };
+  ```
 
 ---
 
@@ -626,11 +973,44 @@ Deze week heb ik het echte speelbare doolhof-spel gebouwd: een recursief gegener
   - "Play Again" knop die `resetGame()` aanroept.
   </details>
 
+  **Toegevoegde code — `showVictory()` en `spawnConfetti()` (desktop.js):**
+  ```js
+  const showVictory = () => {
+      if (!$victoryOverlay) return;
+      $victoryOverlay.classList.add('active');
+      spawnConfetti();
+  };
+
+  const spawnConfetti = () => {
+      const container = $victoryOverlay.querySelector('.victory-particles');
+      if (!container) return;
+      container.innerHTML = '';
+      const colors = ['#ffd600', '#ff6d00', '#00e5ff', '#7c4dff', '#ff5252', '#69f0ae'];
+      for (let i = 0; i < 40; i++) {
+          const p = document.createElement('div');
+          p.className = 'victory-particle';
+          p.style.left = Math.random() * 100 + '%';
+          p.style.top = -10 + Math.random() * 20 + '%';
+          p.style.background = colors[Math.floor(Math.random() * colors.length)];
+          p.style.animationDelay = Math.random() * 1.2 + 's';
+          p.style.animationDuration = 1.8 + Math.random() * 1.5 + 's';
+          container.appendChild(p);
+      }
+  };
+
+  const resetGame = () => {
+      if ($victoryOverlay) $victoryOverlay.classList.remove('active');
+      if ($gameOverOverlay) $gameOverOverlay.classList.remove('active');
+      gameOver = false;
+      ballInitialized = false;
+      initBall();
+  };
+  ```
+  
   **Design details:**
   - Cyberpunk stijl consistent met de rest (noir + neon accenten).
   - Z-index 200 (boven game, onder disconnect overlay).
-  - Refresh icoon op de knop voor duidelijkheid.
-  - Confetti `<svg>` elementen die van boven vallen met random horizontal drift.
+  - Confetti `<div>` elementen die van boven vallen met random horizontal drift.
 
 ---
 
@@ -650,12 +1030,6 @@ Deze week heb ik het echte speelbare doolhof-spel gebouwd: een recursief gegener
   **Oplossing:** Bij eerste klik op het scherm, zet je het geluid aan. Daarna werkt het altijd. Wrap `play()` ook in een `.catch()` voor safety.
   </details>
 
-  **Implementatie:**
-  - `<audio id="collectSound">` voor orb-pickup (kort "ding" geluid).
-  - `<audio id="bgMusic" loop>` voor achtergrondmuziek.
-  - Audio unlock: Bij eerste klik op `gamePlayground` of knop klik, wordt `bgMusic.play()` aangeroepen.
-  - `playCollectSound()` wrapped in `.catch(() => {})` zodat browser-errors netjes stilzwijgen.
-
   <details>
   <summary>🤖 AI Prompt — Geluidstoggle-knop</summary>
 
@@ -669,20 +1043,69 @@ Deze week heb ik het echte speelbare doolhof-spel gebouwd: een recursief gegener
   - Klik ontgrendelt meteen audio + schakelt tussen aan/uit.
   </details>
 
-  **Geluidstoggle ($nbsp;volume control):**
-  - Button in topbar: "🔊 Volume" / "🔇 Mute".
-  - Bij toggle: `soundEnabled` boolean omzetten, achtergrondmuziek paussen/hervat.
-  - Collect-geluiden stille opzij gezet als `soundEnabled === false`.
-  - Achtergrondmuziek op volume `0.3` (zacht, geen oorpijn).
+  <details>
+  <summary>🤖 AI Prompt — Volume regelen via JavaScript</summary>
+
+  > **Mijn prompt:**  
+  > *"Ik wil graag background muziek. Kan ik de volume hiervan stiller laten maken of moet ik zelf de audio verlagen in een audio programma?"*
+
+  **Gemini antwoordde:**  
+  Je kunt het volume uitstekend regelen via JavaScript! Je hoeft niet zelf met een audio-programma aan de slag. De meest efficiënte manier is via het `volume` attribuut van het `<audio>` element. De waarde hiervan ligt tussen **0.0** (stil) en **1.0** (volledig volume).
+  </details>
+
+  **Toegevoegde code — Audio setup (desktop.js):**
+  ```js
+  const collectSound = new Audio('/assets/collect.mp3');
+  const selectSound = new Audio('/assets/select.mp3');
+  const bgMusic = new Audio('/assets/backgroundmusic.mp3');
+  bgMusic.loop = true;
+  bgMusic.volume = 0.6;
+  let audioUnlocked = false;
+  let soundEnabled = false;
+
+  const unlockAudio = () => {
+      if (audioUnlocked) return;
+      collectSound.play().then(() => {
+          collectSound.pause();
+          collectSound.currentTime = 0;
+      }).catch(() => { });
+      audioUnlocked = true;
+  };
+  ```
+
+  **Geluidstoggle-knop (desktop.js):**
+  ```js
+  if ($soundToggle) {
+      $soundToggle.addEventListener('click', () => {
+          unlockAudio();
+          soundEnabled = !soundEnabled;
+          $soundToggle.classList.toggle('muted', !soundEnabled);
+          const label = $soundToggle.querySelector('.sound-label');
+          if (label) label.textContent = soundEnabled ? 'Geluid aan' : 'Geluid uit';
+          if (soundEnabled) {
+              selectSound.currentTime = 0;
+              selectSound.play().catch(() => { });
+          } else {
+              bgMusic.pause();
+          }
+      });
+  }
+  ```
+
+  **Hoe het samenwerkt:**
+  - Button in topbar: "🔊 Geluid aan" / "🔇 Geluid uit".
+  - Bij toggle: `soundEnabled` boolean omzetten, achtergrondmuziek paussen/hervatten.
+  - Collect-geluiden worden overgeslagen als `soundEnabled === false`.
+  - Achtergrondmuziek start na countdown: `if (soundEnabled) bgMusic.play().catch(() => { });`
 
 ---
 
 - **2 rode vijanden met BFS pathfinding AI**
   
-  Het moeilijkste onderdeel: intelligente vijanden die je achtervolgen door het doolhof. Ik zou brute-force pathfinding kunnen doen (traag), maar **BFS (Breadth-First Search)** vindt het kortste pad in O(grid size) tijd.
+  Het moeilijkste onderdeel: intelligente vijanden die je achtervolgen door het doolhof. **BFS (Breadth-First Search)** vindt het kortste pad in O(grid size) tijd.
 
   <details>
-  <summary>🤖 AI Prompt — Vianden implementeren</summary>
+  <summary>🤖 AI Prompt — Vijanden implementeren</summary>
 
   > **Mijn prompt:**  
   > *"Zou het mogelijk zijn om 2 rode bolletjes te gaan plaatsen in het doolhof die naar de gebruiker zijn bal gaat? Wanneer het rood bolletje de gebruiker aanraakt komt er een gameover screen met de kans om opnieuw te gaan spelen."*
@@ -691,43 +1114,146 @@ Deze week heb ik het echte speelbare doolhof-spel gebouwd: een recursief gegener
   Twee systemen:
   1. **Spawning:** 2 vijanden op willekeurige cells (minstens 1 cel afstand van start).
   2. **Pathfinding:** BFS-algoritme → kortste pad naar speler in grid.
-  3. **Movement:** Move lang het pad met snelheid ~1.2px/frame.
+  3. **Movement:** Beweeg langs het pad met constante snelheid.
   4. **Collision:** Check per frame of vijand de speler raakt → Game Over.
   </details>
 
-  **Implementatie:**
-  - `spawnEnemies()` → Kiest 2 random spawn-cellen met minimale afstand van balletje.
-  - `findPathBFS()` → Gegeven huidge positie en doelpos, geef de kortste route terug (als muurcolumns).
-  - `updateEnemies()` → Beweeg elke vijand langs zijn path met constante snelheid.
-  - Collision: `checkEnemyCollision()` in `handleTilt()` loop.
-  - Rode ballen met glow effect (`#ff1744`), passend bij thema.
+  **Toegevoegde code — `spawnEnemies()` (desktop.js):**
+  ```js
+  const spawnEnemies = () => {
+      $gamePlayground.querySelectorAll('.maze-enemy').forEach(el => el.remove());
+      enemies = [];
+      if (enemyAnimId) { cancelAnimationFrame(enemyAnimId); enemyAnimId = null; }
 
-  **BFS algoritme:**
-  ```javascript
-  function findPathBFS(startRow, startCol, goalRow, goalCol) {
-      const queue = [[startRow, startCol, []]];
-      const visited = new Set();
-      
-      while (queue.length > 0) {
-          const [row, col, path] = queue.shift();
-          
-          if (row === goalRow && col === goalCol) {
-              return path; // Gevonden!
+      const centerCol = Math.floor(mazeCols / 2);
+      const centerRow = Math.floor(mazeRows / 2);
+      const usedCells = new Set();
+      usedCells.add(`${centerRow},${centerCol}`);
+      // Also avoid cells adjacent to center
+      for (let dr = -1; dr <= 1; dr++) {
+          for (let dc = -1; dc <= 1; dc++) {
+              usedCells.add(`${centerRow + dr},${centerCol + dc}`);
           }
-          
-          // Check alle 4 richtingen
-          [[−1,0], [1,0], [0,−1], [0,1]].forEach(([dr, dc]) => {
-              const nr = row + dr, nc = col + dc;
-              const key = `${nr},${nc}`;
-              
-              if (!visited.has(key) && maze[nr]?.[nc] === 0) {
-                  visited.add(key);
-                  queue.push([nr, nc, [...path, [nr, nc]]]);
-              }
-          });
       }
-      return []; // Geen pad
-  }
+
+      while (enemies.length < ENEMY_COUNT) {
+          const r = Math.floor(Math.random() * mazeRows);
+          const c = Math.floor(Math.random() * mazeCols);
+          const key = `${r},${c}`;
+          if (usedCells.has(key)) continue;
+          usedCells.add(key);
+
+          const x = mazeOffsetX + c * cellSize + cellSize / 2;
+          const y = mazeOffsetY + r * cellSize + cellSize / 2;
+
+          const el = document.createElement('div');
+          el.className = 'maze-enemy';
+          el.style.left = x + 'px';
+          el.style.top = y + 'px';
+          $gamePlayground.appendChild(el);
+
+          enemies.push({ x, y, el });
+      }
+
+      startEnemyLoop();
+  };
+  ```
+
+  **BFS pathfinding — `moveEnemyTowardPlayer()` (desktop.js):**
+  ```js
+  const getOpenNeighbors = (row, col) => {
+      const nb = [];
+      const cell = mazeGrid[row][col];
+      if (!cell.top && row > 0) nb.push({ r: row - 1, c: col });
+      if (!cell.bottom && row < mazeRows - 1) nb.push({ r: row + 1, c: col });
+      if (!cell.left && col > 0) nb.push({ r: row, c: col - 1 });
+      if (!cell.right && col < mazeCols - 1) nb.push({ r: row, c: col + 1 });
+      return nb;
+  };
+
+  const moveEnemyTowardPlayer = (enemy) => {
+      const eCol = Math.floor((enemy.x - mazeOffsetX) / cellSize);
+      const eRow = Math.floor((enemy.y - mazeOffsetY) / cellSize);
+      const pCol = Math.floor((ballState.x - mazeOffsetX) / cellSize);
+      const pRow = Math.floor((ballState.y - mazeOffsetY) / cellSize);
+      const safeECol = Math.max(0, Math.min(mazeCols - 1, eCol));
+      const safeERow = Math.max(0, Math.min(mazeRows - 1, eRow));
+
+      // BFS to find direction toward player
+      const target = `${pRow},${pCol}`;
+      const start = `${safeERow},${safeECol}`;
+      if (start === target) {
+          const dx = ballState.x - enemy.x;
+          const dy = ballState.y - enemy.y;
+          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+          enemy.x += (dx / dist) * ENEMY_SPEED;
+          enemy.y += (dy / dist) * ENEMY_SPEED;
+          return;
+      }
+
+      const visited = new Set();
+      const queue = [{ r: safeERow, c: safeECol, firstR: -1, firstC: -1 }];
+      visited.add(start);
+      let nextR = safeERow;
+      let nextC = safeECol;
+
+      while (queue.length > 0) {
+          const cur = queue.shift();
+          if (`${cur.r},${cur.c}` === target) {
+              nextR = cur.firstR;
+              nextC = cur.firstC;
+              break;
+          }
+          for (const nb of getOpenNeighbors(cur.r, cur.c)) {
+              const key = `${nb.r},${nb.c}`;
+              if (visited.has(key)) continue;
+              visited.add(key);
+              queue.push({
+                  r: nb.r, c: nb.c,
+                  firstR: cur.firstR === -1 ? nb.r : cur.firstR,
+                  firstC: cur.firstC === -1 ? nb.c : cur.firstC
+              });
+          }
+      }
+
+      // Move toward center of next cell
+      const targetX = mazeOffsetX + nextC * cellSize + cellSize / 2;
+      const targetY = mazeOffsetY + nextR * cellSize + cellSize / 2;
+      const dx = targetX - enemy.x;
+      const dy = targetY - enemy.y;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      enemy.x += (dx / dist) * ENEMY_SPEED;
+      enemy.y += (dy / dist) * ENEMY_SPEED;
+  };
+  ```
+
+  **Enemy collision + game loop (desktop.js):**
+  ```js
+  const startEnemyLoop = () => {
+      const tick = () => {
+          if (gameOver || !ballInitialized) return;
+          for (const enemy of enemies) {
+              moveEnemyTowardPlayer(enemy);
+              enemy.el.style.left = enemy.x + 'px';
+              enemy.el.style.top = enemy.y + 'px';
+          }
+          enemyAnimId = requestAnimationFrame(tick);
+      };
+      enemyAnimId = requestAnimationFrame(tick);
+  };
+
+  const checkEnemyCollision = () => {
+      if (gameOver) return;
+      const ballRadius = 12;
+      for (const enemy of enemies) {
+          const dx = ballState.x - enemy.x;
+          const dy = ballState.y - enemy.y;
+          if (dx * dx + dy * dy < (ballRadius + ENEMY_RADIUS) * (ballRadius + ENEMY_RADIUS)) {
+              triggerGameOver();
+              return;
+          }
+      }
+  };
   ```
 
 ---
@@ -736,9 +1262,18 @@ Deze week heb ik het echte speelbare doolhof-spel gebouwd: een recursief gegener
   
   Vergelijkbaar met Victory screen. Rood X-icoon, "Game Over" titel, "Je bent gepakt!" bericht, "Try Again" knop.
 
-  **Implementatie:**
-  - HTML overlay met rode kleurstelling.
+  **Toegevoegde code — `triggerGameOver()` (desktop.js):**
+  ```js
+  const triggerGameOver = () => {
+      gameOver = true;
+      if (enemyAnimId) { cancelAnimationFrame(enemyAnimId); enemyAnimId = null; }
+      bgMusic.pause();
+      if ($gameOverOverlay) $gameOverOverlay.classList.add('active');
+  };
+  ```
+
   - Achtergrondmuziek stopt bij game over (`bgMusic.pause()`).
+  - Enemy animation loop stopt (`cancelAnimationFrame`).
   - "Try Again" knop roept `resetGame()` aan → nieuw doolhof, nieuwe orbs, nieuwe vijandposities.
 
 ---
