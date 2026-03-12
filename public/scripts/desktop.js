@@ -382,10 +382,32 @@ const moveEnemyTowardPlayer = (enemy) => {
 };
 
 const startEnemyLoop = () => {
+    const MIN_DIST = ENEMY_RADIUS * 3; // minimum separation between enemies
     const tick = () => {
         if (gameOver || gamePaused || !ballInitialized) return;
         for (const enemy of enemies) {
             moveEnemyTowardPlayer(enemy);
+        }
+        // Push enemies apart if overlapping
+        for (let i = 0; i < enemies.length; i++) {
+            for (let j = i + 1; j < enemies.length; j++) {
+                const a = enemies[i];
+                const b = enemies[j];
+                const dx = b.x - a.x;
+                const dy = b.y - a.y;
+                const dist = Math.sqrt(dx * dx + dy * dy) || 0.1;
+                if (dist < MIN_DIST) {
+                    const overlap = (MIN_DIST - dist) / 2;
+                    const nx = dx / dist;
+                    const ny = dy / dist;
+                    a.x -= nx * overlap;
+                    a.y -= ny * overlap;
+                    b.x += nx * overlap;
+                    b.y += ny * overlap;
+                }
+            }
+        }
+        for (const enemy of enemies) {
             enemy.el.style.left = enemy.x + 'px';
             enemy.el.style.top = enemy.y + 'px';
         }
