@@ -422,7 +422,7 @@ const startEnemyLoop = () => {
 };
 
 // ── Blow ability: freeze enemies ──
-const FREEZE_DURATION = 2000;
+const FREEZE_DURATION = 4000;
 
 const freezeEnemies = () => {
     if (enemiesFrozen || gameOver || gamePaused) return;

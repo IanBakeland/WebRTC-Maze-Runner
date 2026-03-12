@@ -86,8 +86,7 @@ const needsPermission = typeof DeviceOrientationEvent.requestPermission === 'fun
 let permissionGranted = false;
 
 const onConnected = async () => {
-    // Request mic first, then orientation permission if needed
-    await initBlowAbility();
+    await initFreezeAbility();
     if (needsPermission && !permissionGranted) {
         showScreen('permScreen');
     } else {
@@ -135,37 +134,35 @@ const startCountdown = () => {
             setTimeout(() => {
                 showScreen('controlsScreen');
                 startOrientation();
-                // Mic already initialized in onConnected, just restart monitoring
-                blowMonitoringActive = true;
-                setBlowState('ready');
-                monitorMic();
+                // Speech recognition already initialized, just restart
+                setFreezeState('ready');
+                startRecognition();
             }, 800);
         }
     };
     setTimeout(tick, 1000);
 };
 
-// ── Blow ability: mic detection + state machine ──
-const BLOW_THRESHOLD = 55;      // volume level to trigger (lower = more sensitive)
-const BLOW_COOLDOWN = 10000;    // 10s cooldown
-const BLOW_ACTIVE = 2000;       // 2s freeze
+// ── Freeze ability: voice command detection ──
+const FREEZE_COOLDOWN = 10000;  // 10s cooldown
+const FREEZE_ACTIVE = 4000;     // 4s freeze
 const RING_CIRCUMFERENCE = 2 * Math.PI * 36; // ~226.2
 
-let blowState = 'idle'; // idle | ready | active | cooldown
-let audioCtx, analyser, micStream, blowAnimId;
-let blowCooldownStart = 0;
+let freezeState = 'idle'; // idle | ready | active | cooldown
+let freezeCooldownStart = 0;
+let recognition = null;
 
 const $blowAbility = document.getElementById('blowAbility');
 const $blowLabel = document.getElementById('blowLabel');
 const $blowRingFill = document.getElementById('blowRingFill');
 
-const setBlowState = (state) => {
-    blowState = state;
+const setFreezeState = (state) => {
+    freezeState = state;
     $blowAbility.classList.remove('ready', 'active', 'cooldown');
 
     if (state === 'ready') {
         $blowAbility.classList.add('ready');
-        $blowLabel.textContent = 'Blaas om te bevriezen';
+        $blowLabel.textContent = 'Zeg "Freeze"';
         $blowRingFill.style.strokeDashoffset = '0';
     } else if (state === 'active') {
         $blowAbility.classList.add('active');
@@ -174,15 +171,15 @@ const setBlowState = (state) => {
     } else if (state === 'cooldown') {
         $blowAbility.classList.add('cooldown');
         $blowRingFill.style.strokeDashoffset = String(RING_CIRCUMFERENCE);
-        blowCooldownStart = performance.now();
+        freezeCooldownStart = performance.now();
         animateCooldownRing();
     }
 };
 
 const animateCooldownRing = () => {
-    const elapsed = performance.now() - blowCooldownStart;
-    const remaining = Math.max(0, BLOW_COOLDOWN - elapsed);
-    const progress = 1 - remaining / BLOW_COOLDOWN;
+    const elapsed = performance.now() - freezeCooldownStart;
+    const remaining = Math.max(0, FREEZE_COOLDOWN - elapsed);
+    const progress = 1 - remaining / FREEZE_COOLDOWN;
     $blowRingFill.style.strokeDashoffset = String(RING_CIRCUMFERENCE * (1 - progress));
     const sec = Math.ceil(remaining / 1000);
     $blowLabel.textContent = `Cooldown ${sec}s`;
@@ -190,92 +187,96 @@ const animateCooldownRing = () => {
     if (remaining > 0) {
         requestAnimationFrame(animateCooldownRing);
     } else {
-        setBlowState('ready');
+        setFreezeState('ready');
+        startRecognition();
     }
 };
 
-const triggerBlow = () => {
-    if (blowState !== 'ready') return;
-    // Send freeze message to desktop
+const triggerFreeze = () => {
+    if (freezeState !== 'ready') return;
     if (dataChannel && dataChannel.readyState === 'open') {
         dataChannel.send(JSON.stringify({ type: 'blow' }));
     }
-    setBlowState('active');
+    setFreezeState('active');
     setTimeout(() => {
-        setBlowState('cooldown');
-    }, BLOW_ACTIVE);
+        setFreezeState('cooldown');
+    }, FREEZE_ACTIVE);
 };
 
-let blowMonitoringActive = false;
-let blowFrames = 0;
-const BLOW_FRAMES_NEEDED = 5; // must sustain for ~5 frames to trigger
-
-const monitorMic = () => {
-    if (!blowMonitoringActive || !analyser) return;
-    const data = new Uint8Array(analyser.frequencyBinCount);
-    analyser.getByteFrequencyData(data);
-
-    // Low frequencies (bins 1-10, ~86-860Hz) — where blowing energy lives
-    let lowSum = 0;
-    for (let i = 1; i <= 10; i++) lowSum += data[i];
-    const lowAvg = lowSum / 10;
-
-    // Mid-high frequencies (bins 20-60, ~1.7-5.2kHz) — speech/music lives here
-    let highSum = 0;
-    for (let i = 20; i <= 60; i++) highSum += data[i];
-    const highAvg = highSum / 41;
-
-    // Blowing = strong low energy + weak high energy (ratio > 2)
-    const ratio = highAvg > 0 ? lowAvg / highAvg : lowAvg;
-    const isBlowLike = lowAvg > BLOW_THRESHOLD && ratio > 2;
-
-    if (isBlowLike) {
-        blowFrames++;
-        if (blowFrames >= BLOW_FRAMES_NEEDED && blowState === 'ready') {
-            blowFrames = 0;
-            triggerBlow();
-        }
-    } else {
-        blowFrames = 0;
+const startRecognition = () => {
+    if (!recognition) return;
+    try {
+        recognition.start();
+    } catch (e) {
+        // Already started — ignore
     }
-    blowAnimId = requestAnimationFrame(monitorMic);
 };
 
-const initBlowAbility = async () => {
-    if (audioCtx) {
-        // Already initialized — just restart monitoring
-        blowMonitoringActive = true;
-        setBlowState('ready');
-        monitorMic();
+const stopRecognition = () => {
+    if (!recognition) return;
+    try {
+        recognition.stop();
+    } catch (e) {
+        // Not started — ignore
+    }
+};
+
+const initFreezeAbility = async () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        $blowLabel.textContent = 'Spraak niet ondersteund';
         return;
     }
-    try {
-        micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 256;
-        analyser.smoothingTimeConstant = 0.3;
-        const source = audioCtx.createMediaStreamSource(micStream);
-        source.connect(analyser);
-        blowMonitoringActive = true;
-        setBlowState('ready');
-        monitorMic();
-    } catch (err) {
-        console.warn('Mic access denied:', err);
-        $blowLabel.textContent = 'Microfoon geweigerd';
+
+    if (!recognition) {
+        recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        recognition.onresult = (event) => {
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                const transcript = event.results[i][0].transcript.toLowerCase().trim();
+                if (transcript.includes('freeze') || transcript.includes('fries') || transcript.includes('trees')) {
+                    triggerFreeze();
+                    break;
+                }
+            }
+        };
+
+        recognition.onend = () => {
+            // Auto-restart if ability is ready
+            if (freezeState === 'ready') {
+                startRecognition();
+            }
+        };
+
+        recognition.onerror = (e) => {
+            console.warn('Speech recognition error:', e.error);
+            if (e.error === 'not-allowed') {
+                $blowLabel.textContent = 'Microfoon geweigerd';
+                return;
+            }
+            // Restart on transient errors
+            if (freezeState === 'ready') {
+                setTimeout(startRecognition, 500);
+            }
+        };
     }
+
+    setFreezeState('ready');
+    startRecognition();
 };
 
-const stopBlowMonitoring = () => {
-    blowMonitoringActive = false;
-    if (blowAnimId) { cancelAnimationFrame(blowAnimId); blowAnimId = null; }
+const stopFreezeMonitoring = () => {
+    stopRecognition();
 };
 
-const resetBlowAbility = () => {
-    stopBlowMonitoring();
-    blowState = 'idle';
+const resetFreezeAbility = () => {
+    stopRecognition();
+    freezeState = 'idle';
     $blowAbility.classList.remove('ready', 'active', 'cooldown');
-    $blowLabel.textContent = 'Blaas om te bevriezen';
+    $blowLabel.textContent = 'Zeg "Freeze"';
     $blowRingFill.style.strokeDashoffset = '0';
 };
 
@@ -333,22 +334,22 @@ const callPeer = async (peerId) => {
             onConnected();
         } else if (message.type === 'victory') {
             stopOrientation();
-            stopBlowMonitoring();
+            stopFreezeMonitoring();
             showScreen('victoryScreen');
         } else if (message.type === 'game-over') {
             stopOrientation();
-            stopBlowMonitoring();
+            stopFreezeMonitoring();
             showScreen('gameOverScreen');
         } else if (message.type === 'paused') {
             stopOrientation();
-            stopBlowMonitoring();
+            stopFreezeMonitoring();
             showScreen('pausedScreen');
         } else if (message.type === 'resumed') {
             showScreen('controlsScreen');
             startOrientation();
-            initBlowAbility();
+            initFreezeAbility();
         } else if (message.type === 'game-restart') {
-            resetBlowAbility();
+            resetFreezeAbility();
             handlePlayAgain();
         } else if (message.type === 'room-code') {
             const $label = document.getElementById('roomCodeLabel');
