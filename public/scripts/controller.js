@@ -85,7 +85,9 @@ const stopOrientation = () => {
 const needsPermission = typeof DeviceOrientationEvent.requestPermission === 'function';
 let permissionGranted = false;
 
-const onConnected = () => {
+const onConnected = async () => {
+    // Request mic first, then orientation permission if needed
+    await initBlowAbility();
     if (needsPermission && !permissionGranted) {
         showScreen('permScreen');
     } else {
@@ -133,10 +135,148 @@ const startCountdown = () => {
             setTimeout(() => {
                 showScreen('controlsScreen');
                 startOrientation();
+                // Mic already initialized in onConnected, just restart monitoring
+                blowMonitoringActive = true;
+                setBlowState('ready');
+                monitorMic();
             }, 800);
         }
     };
     setTimeout(tick, 1000);
+};
+
+// ── Blow ability: mic detection + state machine ──
+const BLOW_THRESHOLD = 55;      // volume level to trigger (lower = more sensitive)
+const BLOW_COOLDOWN = 10000;    // 10s cooldown
+const BLOW_ACTIVE = 2000;       // 2s freeze
+const RING_CIRCUMFERENCE = 2 * Math.PI * 36; // ~226.2
+
+let blowState = 'idle'; // idle | ready | active | cooldown
+let audioCtx, analyser, micStream, blowAnimId;
+let blowCooldownStart = 0;
+
+const $blowAbility = document.getElementById('blowAbility');
+const $blowLabel = document.getElementById('blowLabel');
+const $blowRingFill = document.getElementById('blowRingFill');
+
+const setBlowState = (state) => {
+    blowState = state;
+    $blowAbility.classList.remove('ready', 'active', 'cooldown');
+
+    if (state === 'ready') {
+        $blowAbility.classList.add('ready');
+        $blowLabel.textContent = 'Blaas om te bevriezen';
+        $blowRingFill.style.strokeDashoffset = '0';
+    } else if (state === 'active') {
+        $blowAbility.classList.add('active');
+        $blowLabel.textContent = 'Bevroren! ❄️';
+        $blowRingFill.style.strokeDashoffset = '0';
+    } else if (state === 'cooldown') {
+        $blowAbility.classList.add('cooldown');
+        $blowRingFill.style.strokeDashoffset = String(RING_CIRCUMFERENCE);
+        blowCooldownStart = performance.now();
+        animateCooldownRing();
+    }
+};
+
+const animateCooldownRing = () => {
+    const elapsed = performance.now() - blowCooldownStart;
+    const remaining = Math.max(0, BLOW_COOLDOWN - elapsed);
+    const progress = 1 - remaining / BLOW_COOLDOWN;
+    $blowRingFill.style.strokeDashoffset = String(RING_CIRCUMFERENCE * (1 - progress));
+    const sec = Math.ceil(remaining / 1000);
+    $blowLabel.textContent = `Cooldown ${sec}s`;
+
+    if (remaining > 0) {
+        requestAnimationFrame(animateCooldownRing);
+    } else {
+        setBlowState('ready');
+    }
+};
+
+const triggerBlow = () => {
+    if (blowState !== 'ready') return;
+    // Send freeze message to desktop
+    if (dataChannel && dataChannel.readyState === 'open') {
+        dataChannel.send(JSON.stringify({ type: 'blow' }));
+    }
+    setBlowState('active');
+    setTimeout(() => {
+        setBlowState('cooldown');
+    }, BLOW_ACTIVE);
+};
+
+let blowMonitoringActive = false;
+let blowFrames = 0;
+const BLOW_FRAMES_NEEDED = 5; // must sustain for ~5 frames to trigger
+
+const monitorMic = () => {
+    if (!blowMonitoringActive || !analyser) return;
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteFrequencyData(data);
+
+    // Low frequencies (bins 1-10, ~86-860Hz) — where blowing energy lives
+    let lowSum = 0;
+    for (let i = 1; i <= 10; i++) lowSum += data[i];
+    const lowAvg = lowSum / 10;
+
+    // Mid-high frequencies (bins 20-60, ~1.7-5.2kHz) — speech/music lives here
+    let highSum = 0;
+    for (let i = 20; i <= 60; i++) highSum += data[i];
+    const highAvg = highSum / 41;
+
+    // Blowing = strong low energy + weak high energy (ratio > 2)
+    const ratio = highAvg > 0 ? lowAvg / highAvg : lowAvg;
+    const isBlowLike = lowAvg > BLOW_THRESHOLD && ratio > 2;
+
+    if (isBlowLike) {
+        blowFrames++;
+        if (blowFrames >= BLOW_FRAMES_NEEDED && blowState === 'ready') {
+            blowFrames = 0;
+            triggerBlow();
+        }
+    } else {
+        blowFrames = 0;
+    }
+    blowAnimId = requestAnimationFrame(monitorMic);
+};
+
+const initBlowAbility = async () => {
+    if (audioCtx) {
+        // Already initialized — just restart monitoring
+        blowMonitoringActive = true;
+        setBlowState('ready');
+        monitorMic();
+        return;
+    }
+    try {
+        micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.3;
+        const source = audioCtx.createMediaStreamSource(micStream);
+        source.connect(analyser);
+        blowMonitoringActive = true;
+        setBlowState('ready');
+        monitorMic();
+    } catch (err) {
+        console.warn('Mic access denied:', err);
+        $blowLabel.textContent = 'Microfoon geweigerd';
+    }
+};
+
+const stopBlowMonitoring = () => {
+    blowMonitoringActive = false;
+    if (blowAnimId) { cancelAnimationFrame(blowAnimId); blowAnimId = null; }
+};
+
+const resetBlowAbility = () => {
+    stopBlowMonitoring();
+    blowState = 'idle';
+    $blowAbility.classList.remove('ready', 'active', 'cooldown');
+    $blowLabel.textContent = 'Blaas om te bevriezen';
+    $blowRingFill.style.strokeDashoffset = '0';
 };
 
 // ── WebRTC verbinding, signalling en init voor de controller ──
@@ -193,17 +333,22 @@ const callPeer = async (peerId) => {
             onConnected();
         } else if (message.type === 'victory') {
             stopOrientation();
+            stopBlowMonitoring();
             showScreen('victoryScreen');
         } else if (message.type === 'game-over') {
             stopOrientation();
+            stopBlowMonitoring();
             showScreen('gameOverScreen');
         } else if (message.type === 'paused') {
             stopOrientation();
+            stopBlowMonitoring();
             showScreen('pausedScreen');
         } else if (message.type === 'resumed') {
             showScreen('controlsScreen');
             startOrientation();
+            initBlowAbility();
         } else if (message.type === 'game-restart') {
+            resetBlowAbility();
             handlePlayAgain();
         } else if (message.type === 'room-code') {
             const $label = document.getElementById('roomCodeLabel');

@@ -709,6 +709,18 @@ body {
     box-shadow: 0 0 14px #ff5252, 0 0 32px rgba(255, 82, 82, .35);
     transform: translate(-50%, -50%);
     z-index: 9;
+    transition: background .3s, box-shadow .3s;
+}
+
+.maze-enemy.frozen {
+    background: #4fc3f7;
+    box-shadow: 0 0 18px #4fc3f7, 0 0 40px rgba(79, 195, 247, .4);
+    animation: freeze-pulse 1s ease-in-out infinite;
+}
+
+@keyframes freeze-pulse {
+    0%, 100% { box-shadow: 0 0 18px #4fc3f7, 0 0 40px rgba(79, 195, 247, .4); }
+    50% { box-shadow: 0 0 24px #4fc3f7, 0 0 56px rgba(79, 195, 247, .6); }
 }
 
 .maze-wall {
