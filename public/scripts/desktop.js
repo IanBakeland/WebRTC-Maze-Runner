@@ -647,6 +647,7 @@ const handleDisconnect = () => {
         } else {
             clearInterval(iv);
             // Reset everything
+            resetGame(); // This removes victory/game-over/pause overlays and resets state
             overlay.classList.remove('active');
             document.getElementById('countdownOverlay').classList.remove('active');
             document.getElementById('gameScreen').classList.remove('active');
