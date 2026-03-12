@@ -597,6 +597,121 @@ body {
     box-shadow: 0 0 20px rgba(0, 229, 255, .2), 0 4px 12px rgba(0, 0, 0, .3);
 }
 
+/* ── Blow ability widget ─────────────────────────────── */
+.blow-ability {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .5rem;
+    margin: 1rem 0;
+    animation: fadeUp .5s .2s ease-out both;
+}
+
+.blow-ring {
+    position: relative;
+    width: 72px;
+    height: 72px;
+}
+
+.blow-ring > svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.blow-ring-bg {
+    fill: none;
+    stroke: rgba(255, 255, 255, .06);
+    stroke-width: 3;
+}
+
+.blow-ring-fill {
+    fill: none;
+    stroke: var(--clr-accent);
+    stroke-width: 3;
+    stroke-dasharray: 226.2;
+    stroke-dashoffset: 0;
+    stroke-linecap: round;
+    transition: stroke-dashoffset .1s linear, stroke .3s;
+}
+
+.blow-icon {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.blow-icon svg {
+    width: 28px;
+    height: 28px;
+    fill: none;
+    stroke: var(--clr-accent);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    filter: drop-shadow(0 0 6px rgba(0, 229, 255, .4));
+    transition: stroke .3s, filter .3s;
+    transform: rotate(0deg);
+}
+
+.blow-label {
+    font-size: .7rem;
+    color: var(--clr-dim);
+    letter-spacing: .5px;
+    text-align: center;
+    transition: color .3s;
+}
+
+/* Ready state — gentle glow */
+.blow-ability.ready .blow-icon svg {
+    animation: blow-glow 2s ease-in-out infinite;
+}
+
+@keyframes blow-glow {
+    0%, 100% { filter: drop-shadow(0 0 6px rgba(0, 229, 255, .3)); }
+    50% { filter: drop-shadow(0 0 14px rgba(0, 229, 255, .7)); }
+}
+
+/* Active state — ice blue pulse */
+.blow-ability.active .blow-icon svg {
+    stroke: #4fc3f7;
+    filter: drop-shadow(0 0 12px rgba(79, 195, 247, .8));
+    animation: blow-active-pulse .6s ease-in-out infinite;
+}
+
+.blow-ability.active .blow-ring-fill {
+    stroke: #4fc3f7;
+    stroke-dashoffset: 0;
+}
+
+.blow-ability.active .blow-label {
+    color: #4fc3f7;
+}
+
+@keyframes blow-active-pulse {
+    0%, 100% { filter: drop-shadow(0 0 10px rgba(79, 195, 247, .6)); }
+    50% { filter: drop-shadow(0 0 20px rgba(79, 195, 247, 1)); }
+}
+
+/* Cooldown state — dimmed, ring drains */
+.blow-ability.cooldown .blow-icon svg {
+    stroke: var(--clr-dim);
+    filter: none;
+    animation: none;
+}
+
+.blow-ability.cooldown .blow-ring-fill {
+    stroke: rgba(255, 255, 255, .15);
+}
+
+.blow-ability.cooldown .blow-label {
+    color: var(--clr-dim);
+}
+
 /* ── Controller action buttons row ───────────────────── */
 .ctrl-actions {
     display: flex;

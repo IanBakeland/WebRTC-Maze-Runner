@@ -85,7 +85,8 @@ const stopOrientation = () => {
 const needsPermission = typeof DeviceOrientationEvent.requestPermission === 'function';
 let permissionGranted = false;
 
-const onConnected = () => {
+const onConnected = async () => {
+    await initFreezeAbility();
     if (needsPermission && !permissionGranted) {
         showScreen('permScreen');
     } else {
@@ -133,10 +134,150 @@ const startCountdown = () => {
             setTimeout(() => {
                 showScreen('controlsScreen');
                 startOrientation();
+                // Speech recognition already initialized, just restart
+                setFreezeState('ready');
+                startRecognition();
             }, 800);
         }
     };
     setTimeout(tick, 1000);
+};
+
+// ── Freeze ability: voice command detection ──
+const FREEZE_COOLDOWN = 10000;  // 10s cooldown
+const FREEZE_ACTIVE = 4000;     // 4s freeze
+const RING_CIRCUMFERENCE = 2 * Math.PI * 36; // ~226.2
+
+let freezeState = 'idle'; // idle | ready | active | cooldown
+let freezeCooldownStart = 0;
+let recognition = null;
+
+const $blowAbility = document.getElementById('blowAbility');
+const $blowLabel = document.getElementById('blowLabel');
+const $blowRingFill = document.getElementById('blowRingFill');
+
+const setFreezeState = (state) => {
+    freezeState = state;
+    $blowAbility.classList.remove('ready', 'active', 'cooldown');
+
+    if (state === 'ready') {
+        $blowAbility.classList.add('ready');
+        $blowLabel.textContent = 'Zeg "Freeze"';
+        $blowRingFill.style.strokeDashoffset = '0';
+    } else if (state === 'active') {
+        $blowAbility.classList.add('active');
+        $blowLabel.textContent = 'Bevroren! ❄️';
+        $blowRingFill.style.strokeDashoffset = '0';
+    } else if (state === 'cooldown') {
+        $blowAbility.classList.add('cooldown');
+        $blowRingFill.style.strokeDashoffset = String(RING_CIRCUMFERENCE);
+        freezeCooldownStart = performance.now();
+        animateCooldownRing();
+    }
+};
+
+const animateCooldownRing = () => {
+    const elapsed = performance.now() - freezeCooldownStart;
+    const remaining = Math.max(0, FREEZE_COOLDOWN - elapsed);
+    const progress = 1 - remaining / FREEZE_COOLDOWN;
+    $blowRingFill.style.strokeDashoffset = String(RING_CIRCUMFERENCE * (1 - progress));
+    const sec = Math.ceil(remaining / 1000);
+    $blowLabel.textContent = `Cooldown ${sec}s`;
+
+    if (remaining > 0) {
+        requestAnimationFrame(animateCooldownRing);
+    } else {
+        setFreezeState('ready');
+        startRecognition();
+    }
+};
+
+const triggerFreeze = () => {
+    if (freezeState !== 'ready') return;
+    if (dataChannel && dataChannel.readyState === 'open') {
+        dataChannel.send(JSON.stringify({ type: 'blow' }));
+    }
+    setFreezeState('active');
+    setTimeout(() => {
+        setFreezeState('cooldown');
+    }, FREEZE_ACTIVE);
+};
+
+const startRecognition = () => {
+    if (!recognition) return;
+    try {
+        recognition.start();
+    } catch (e) {
+        // Already started — ignore
+    }
+};
+
+const stopRecognition = () => {
+    if (!recognition) return;
+    try {
+        recognition.stop();
+    } catch (e) {
+        // Not started — ignore
+    }
+};
+
+const initFreezeAbility = async () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        $blowLabel.textContent = 'Spraak niet ondersteund';
+        return;
+    }
+
+    if (!recognition) {
+        recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        recognition.onresult = (event) => {
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                const transcript = event.results[i][0].transcript.toLowerCase().trim();
+                if (transcript.includes('freeze') || transcript.includes('fries') || transcript.includes('trees')) {
+                    triggerFreeze();
+                    break;
+                }
+            }
+        };
+
+        recognition.onend = () => {
+            // Auto-restart if ability is ready
+            if (freezeState === 'ready') {
+                startRecognition();
+            }
+        };
+
+        recognition.onerror = (e) => {
+            console.warn('Speech recognition error:', e.error);
+            if (e.error === 'not-allowed') {
+                $blowLabel.textContent = 'Microfoon geweigerd';
+                return;
+            }
+            // Restart on transient errors
+            if (freezeState === 'ready') {
+                setTimeout(startRecognition, 500);
+            }
+        };
+    }
+
+    setFreezeState('ready');
+    startRecognition();
+};
+
+const stopFreezeMonitoring = () => {
+    stopRecognition();
+};
+
+const resetFreezeAbility = () => {
+    stopRecognition();
+    freezeState = 'idle';
+    $blowAbility.classList.remove('ready', 'active', 'cooldown');
+    $blowLabel.textContent = 'Zeg "Freeze"';
+    $blowRingFill.style.strokeDashoffset = '0';
 };
 
 // ── WebRTC verbinding, signalling en init voor de controller ──
@@ -193,17 +334,22 @@ const callPeer = async (peerId) => {
             onConnected();
         } else if (message.type === 'victory') {
             stopOrientation();
+            stopFreezeMonitoring();
             showScreen('victoryScreen');
         } else if (message.type === 'game-over') {
             stopOrientation();
+            stopFreezeMonitoring();
             showScreen('gameOverScreen');
         } else if (message.type === 'paused') {
             stopOrientation();
+            stopFreezeMonitoring();
             showScreen('pausedScreen');
         } else if (message.type === 'resumed') {
             showScreen('controlsScreen');
             startOrientation();
+            initFreezeAbility();
         } else if (message.type === 'game-restart') {
+            resetFreezeAbility();
             handlePlayAgain();
         } else if (message.type === 'room-code') {
             const $label = document.getElementById('roomCodeLabel');

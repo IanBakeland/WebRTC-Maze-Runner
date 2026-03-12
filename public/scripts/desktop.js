@@ -39,6 +39,8 @@ let enemies = [];
 let enemyAnimId = null;
 let gameOver = false;
 let gamePaused = false;
+let enemiesFrozen = false;
+let freezeTimeout = null;
 const ORB_COUNT = 8;
 const ORB_RADIUS = 16;
 let orbs = [];
@@ -242,6 +244,8 @@ const resetGame = () => {
     if ($pauseOverlay) $pauseOverlay.classList.remove('active');
     gameOver = false;
     gamePaused = false;
+    enemiesFrozen = false;
+    if (freezeTimeout) { clearTimeout(freezeTimeout); freezeTimeout = null; }
     ballInitialized = false;
     initBall();
 };
@@ -382,28 +386,29 @@ const moveEnemyTowardPlayer = (enemy) => {
 };
 
 const startEnemyLoop = () => {
-    const MIN_DIST = ENEMY_RADIUS * 3; // minimum separation between enemies
+    const MIN_DIST = ENEMY_RADIUS * 3;
     const tick = () => {
         if (gameOver || gamePaused || !ballInitialized) return;
-        for (const enemy of enemies) {
-            moveEnemyTowardPlayer(enemy);
-        }
-        // Push enemies apart if overlapping
-        for (let i = 0; i < enemies.length; i++) {
-            for (let j = i + 1; j < enemies.length; j++) {
-                const a = enemies[i];
-                const b = enemies[j];
-                const dx = b.x - a.x;
-                const dy = b.y - a.y;
-                const dist = Math.sqrt(dx * dx + dy * dy) || 0.1;
-                if (dist < MIN_DIST) {
-                    const overlap = (MIN_DIST - dist) / 2;
-                    const nx = dx / dist;
-                    const ny = dy / dist;
-                    a.x -= nx * overlap;
-                    a.y -= ny * overlap;
-                    b.x += nx * overlap;
-                    b.y += ny * overlap;
+        if (!enemiesFrozen) {
+            for (const enemy of enemies) {
+                moveEnemyTowardPlayer(enemy);
+            }
+            for (let i = 0; i < enemies.length; i++) {
+                for (let j = i + 1; j < enemies.length; j++) {
+                    const a = enemies[i];
+                    const b = enemies[j];
+                    const dx = b.x - a.x;
+                    const dy = b.y - a.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy) || 0.1;
+                    if (dist < MIN_DIST) {
+                        const overlap = (MIN_DIST - dist) / 2;
+                        const nx = dx / dist;
+                        const ny = dy / dist;
+                        a.x -= nx * overlap;
+                        a.y -= ny * overlap;
+                        b.x += nx * overlap;
+                        b.y += ny * overlap;
+                    }
                 }
             }
         }
@@ -414,6 +419,20 @@ const startEnemyLoop = () => {
         enemyAnimId = requestAnimationFrame(tick);
     };
     enemyAnimId = requestAnimationFrame(tick);
+};
+
+// ── Blow ability: freeze enemies ──
+const FREEZE_DURATION = 4000;
+
+const freezeEnemies = () => {
+    if (enemiesFrozen || gameOver || gamePaused) return;
+    enemiesFrozen = true;
+    for (const enemy of enemies) enemy.el.classList.add('frozen');
+    freezeTimeout = setTimeout(() => {
+        enemiesFrozen = false;
+        for (const enemy of enemies) enemy.el.classList.remove('frozen');
+        freezeTimeout = null;
+    }, FREEZE_DURATION);
 };
 
 const checkEnemyCollision = () => {
@@ -628,6 +647,7 @@ const handleDisconnect = () => {
         } else {
             clearInterval(iv);
             // Reset everything
+            resetGame(); // This removes victory/game-over/pause overlays and resets state
             overlay.classList.remove('active');
             document.getElementById('countdownOverlay').classList.remove('active');
             document.getElementById('gameScreen').classList.remove('active');
@@ -683,6 +703,8 @@ const answerPeerOffer = async (offer, peerId) => {
             } else if (message.type === 'toggle-sound') {
                 unlockAudio();
                 setSoundEnabled(!soundEnabled);
+            } else if (message.type === 'blow') {
+                freezeEnemies();
             }
         };
         dataChannel.onopen = () => {
