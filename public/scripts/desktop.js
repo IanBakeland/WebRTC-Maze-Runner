@@ -37,6 +37,7 @@ const ENEMY_SPEED = 1.1;
 let enemies = [];
 let enemyAnimId = null;
 let gameOver = false;
+let gamePaused = false;
 const ORB_COUNT = 8;
 const ORB_RADIUS = 16;
 let orbs = [];
@@ -225,10 +226,36 @@ const spawnConfetti = () => {
 const resetGame = () => {
     if ($victoryOverlay) $victoryOverlay.classList.remove('active');
     if ($gameOverOverlay) $gameOverOverlay.classList.remove('active');
+    const $pauseOverlay = document.getElementById('pauseOverlay');
+    if ($pauseOverlay) $pauseOverlay.classList.remove('active');
     gameOver = false;
+    gamePaused = false;
     ballInitialized = false;
     initBall();
 };
+
+// ── Pause / Resume ──
+const $pauseOverlay = document.getElementById('pauseOverlay');
+
+const pauseGame = () => {
+    if (gameOver || gamePaused) return;
+    gamePaused = true;
+    if (enemyAnimId) { cancelAnimationFrame(enemyAnimId); enemyAnimId = null; }
+    bgMusic.pause();
+    if ($pauseOverlay) $pauseOverlay.classList.add('active');
+    sendToController({ type: 'paused' });
+};
+
+const resumeGame = () => {
+    if (!gamePaused) return;
+    gamePaused = false;
+    if ($pauseOverlay) $pauseOverlay.classList.remove('active');
+    startEnemyLoop();
+    if (soundEnabled) bgMusic.play().catch(() => { });
+    sendToController({ type: 'resumed' });
+};
+
+
 
 
 
@@ -342,7 +369,7 @@ const moveEnemyTowardPlayer = (enemy) => {
 
 const startEnemyLoop = () => {
     const tick = () => {
-        if (gameOver || !ballInitialized) return;
+        if (gameOver || gamePaused || !ballInitialized) return;
         for (const enemy of enemies) {
             moveEnemyTowardPlayer(enemy);
             enemy.el.style.left = enemy.x + 'px';
@@ -468,7 +495,7 @@ const handleTilt = (() => {
         lastTiltTime = now;
 
         if (!$gamePlayground) return;
-        if (gameOver) return;
+        if (gameOver || gamePaused) return;
         if (!ballInitialized) return;
 
         // Update debug HUD
@@ -609,6 +636,10 @@ const answerPeerOffer = async (offer, peerId) => {
                 handleTilt(message.beta, message.gamma);
             } else if (message.type === 'countdown-ready') {
                 startCountdown();
+            } else if (message.type === 'pause') {
+                pauseGame();
+            } else if (message.type === 'resume') {
+                resumeGame();
             } else if (message.type === 'play-again') {
                 resetGame();
             }

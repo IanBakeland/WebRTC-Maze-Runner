@@ -195,6 +195,14 @@ const callPeer = async (peerId) => {
         } else if (message.type === 'game-over') {
             stopOrientation();
             showScreen('gameOverScreen');
+        } else if (message.type === 'paused') {
+            stopOrientation();
+            showScreen('pausedScreen');
+        } else if (message.type === 'resumed') {
+            showScreen('controlsScreen');
+            startOrientation();
+        } else if (message.type === 'game-restart') {
+            handlePlayAgain();
         } else if (message.type === 'orbs-updated') {
             const $orbCounter = document.getElementById('controlOrbCounter');
             if ($orbCounter) {
@@ -234,6 +242,47 @@ const handlePlayAgain = () => {
 
 document.getElementById('ctrlPlayAgainBtn').addEventListener('click', handlePlayAgain);
 document.getElementById('ctrlRetryBtn').addEventListener('click', handlePlayAgain);
+
+// ── Pause / Resume handlers for controller ──
+document.getElementById('ctrlPauseBtn').addEventListener('click', () => {
+    if (dataChannel && dataChannel.readyState === 'open') {
+        dataChannel.send(JSON.stringify({ type: 'pause' }));
+    }
+    stopOrientation();
+    showScreen('pausedScreen');
+});
+
+document.getElementById('ctrlResumeBtn').addEventListener('click', () => {
+    if (dataChannel && dataChannel.readyState === 'open') {
+        dataChannel.send(JSON.stringify({ type: 'resume' }));
+    }
+    showScreen('controlsScreen');
+    startOrientation();
+    resetRestartConfirm();
+});
+
+// ── Restart confirmation ──
+const $ctrlPauseRestartBtn = document.getElementById('ctrlPauseRestartBtn');
+let restartConfirmed = false;
+
+const resetRestartConfirm = () => {
+    restartConfirmed = false;
+    if ($ctrlPauseRestartBtn) {
+        $ctrlPauseRestartBtn.textContent = 'Opnieuw spelen';
+        $ctrlPauseRestartBtn.classList.remove('confirm');
+    }
+};
+
+$ctrlPauseRestartBtn.addEventListener('click', () => {
+    if (!restartConfirmed) {
+        restartConfirmed = true;
+        $ctrlPauseRestartBtn.textContent = 'Weet je het zeker?';
+        $ctrlPauseRestartBtn.classList.add('confirm');
+        return;
+    }
+    resetRestartConfirm();
+    handlePlayAgain();
+});
 
 const init = () => {
     targetSocketId = getUrlParameter('id');

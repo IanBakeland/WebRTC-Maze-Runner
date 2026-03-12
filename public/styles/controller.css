@@ -580,3 +580,76 @@ body {
     transform: scale(.96);
     box-shadow: 0 0 20px rgba(0, 229, 255, .2), 0 4px 12px rgba(0, 0, 0, .3);
 }
+
+/* ── Pause button (controls screen) ──────────────────── */
+.ctrl-pause-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .65rem 1.4rem;
+    border: 1px solid rgba(255, 255, 255, .1);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .04);
+    color: var(--clr-dim);
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 600;
+    font-size: .72rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    margin-top: 1.5rem;
+    transition: border-color .2s, color .2s, background .2s;
+    -webkit-tap-highlight-color: transparent;
+    animation: fadeUp .5s .25s ease-out both;
+}
+
+.ctrl-pause-btn:active {
+    background: rgba(255, 255, 255, .08);
+    border-color: var(--clr-accent);
+    color: var(--clr-accent);
+}
+
+.ctrl-pause-btn svg {
+    width: 14px;
+    height: 14px;
+    fill: currentColor;
+}
+
+/* ── Paused screen ───────────────────────────────────── */
+.pause-screen-icon {
+    background: rgba(0, 229, 255, .08);
+    border: 2px solid rgba(0, 229, 255, .25);
+}
+
+.pause-screen-icon svg {
+    fill: var(--clr-accent);
+    stroke: none;
+}
+
+.pause-screen-title {
+    color: var(--clr-accent);
+}
+
+.ctrl-restart-btn {
+    margin-top: .6rem;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, .1);
+    color: var(--clr-dim);
+    box-shadow: none;
+}
+
+.ctrl-restart-btn:active {
+    border-color: rgba(255, 255, 255, .2);
+    color: var(--clr-text);
+}
+
+.ctrl-restart-btn.confirm {
+    border-color: rgba(255, 82, 82, .5);
+    color: #ff5252;
+    animation: pulse-dot 1.6s ease-in-out infinite;
+}
+
+.ctrl-restart-btn.confirm:active {
+    border-color: #ff5252;
+    background: rgba(255, 82, 82, .1);
+}

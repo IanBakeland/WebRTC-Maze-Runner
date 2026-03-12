@@ -93,9 +93,30 @@
             </svg>
             Kantel om het balletje te bewegen
         </div>
+        <button class="ctrl-pause-btn" id="ctrlPauseBtn">
+            <svg viewBox="0 0 24 24">
+                <rect x="6" y="4" width="4" height="16" rx="1" />
+                <rect x="14" y="4" width="4" height="16" rx="1" />
+            </svg>
+            Pauzeer
+        </button>
     </div>
 
-    <!-- Screen 5: Victory -->
+    <!-- Screen 5: Paused -->
+    <div class="screen" id="pausedScreen">
+        <div class="result-icon pause-screen-icon">
+            <svg viewBox="0 0 24 24">
+                <rect x="6" y="4" width="4" height="16" rx="1" />
+                <rect x="14" y="4" width="4" height="16" rx="1" />
+            </svg>
+        </div>
+        <div class="result-title pause-screen-title">Gepauzeerd</div>
+        <div class="result-msg">Het spel is gepauzeerd.</div>
+        <button class="result-btn" id="ctrlResumeBtn">Hervatten</button>
+        <button class="result-btn ctrl-restart-btn" id="ctrlPauseRestartBtn">Opnieuw spelen</button>
+    </div>
+
+    <!-- Screen 6: Victory -->
     <div class="screen" id="victoryScreen">
         <div class="result-icon victory-icon">
             <svg viewBox="0 0 24 24">
