@@ -1392,37 +1392,28 @@ AI was een enorme versneller voor de boilerplate code (zoals CSS-grids en WebRTC
 
 ### Week 3 — Kritische Reflectie
 
-#### 1. De Shift van "Bouwen" naar "Optimaliseren"
+Deze week verschoof mijn gebruik van AI van "hulp bij concepten" naar "technische optimalisatie en debugging". De complexiteit van het project nam fors toe door de introductie van een game-engine, wat leidde tot interessante interacties met de AI.
 
-- **Wat ik deed:** Ik bouwde eerst het doolhof als 350+ DOM divs (standaard instinct). Na performance testen bleek dit een ramp — fps droop naar ~15.
-- **Wat de AI deed:** Copilot wees op het "Canvas vs. DOM" dilemma en stelde voor om op Canvas te renderen i.p.v. DOM.
-- **Mijn bijsturing:** Ik heb zelf Canvas geïmplementeerd, maar eerst moest ik de native Canvas API begrijpen. Backend-rendering (Canvas) is sneller dan frontend-dom-manipulation voor grote aantallen elementen.
-- **Lering:** Performance problemen vereisen soms architecturale keuzes, niet alleen CSS hacks. AI helpt de symptomen te diagnosticeren, maar ik moest zelf de remedie implementeren.
+#### 1. Performance-gestuurd refactoren
 
-#### 2. Pathfinding: Van "Probeer alles" naar "Wees intelligent"
+- **Wat de AI deed:** Copilot wees me op de enorme overhead van het renderen van 350+ `<div>` elementen met schaduwen. Het stelde voor om over te stappen op de HTML5 Canvas API.
+- **Mijn bijsturing:** In plaats van de AI simpelweg de hele render-functie te laten herschrijven, heb ik specifiek gevraagd om de muren te tekenen op basis van de array-coördinaten van mijn Recursive Backtracker. Ik heb zelf de `lineWidth` en `strokeStyle` aangepast naar een neon-stijl die paste bij het eerdere ontwerp van de interface, om de visuele consistentie te bewaren die ik in Week 2 had opgezet.
 
-- **Wat ik wilde:** Vijanden die de speler "stompzinnig" achtervolgen (altijd naar de dichtsbijzijnde speler).
-- **Wat de AI opperde:** BFS zou eleganter zijn — kortste pad altijd.
-- **Mijn bijsturing:** Ik implementeerde BFS eerst als pure JavaScript (geen libraries). Dit was een **Aha!-moment**: BFS is niet moeilijk, je hoeft alleen maar een queue bij te houden en te controleren of je de goal hebt bereikt. Zelfs met BFS is pathfinding per-frame **nog steeds snel** omdat het grid klein is (25×14 cells).
-- **Lering:** Algoritme-keuzes matter. Beginnercodeers kiezen vaak voor "brute force", maar kleine algoritme-verbeteringen geven dramatische winsten.
+#### 2. Pathfinding en Logica (BFS)
 
-#### 3. Audio-ontgrendeling: Een Browserprobleempje
+- **Wat de AI deed:** Ik wist dat de vijanden de speler moesten achtervolgen, maar wist niet welk algoritme efficiënt genoeg was voor JavaScript. De AI stelde BFS (Breadth-First Search) voor.
+- **Mijn bijsturing:** De initiële code die de AI genereerde, zorgde ervoor dat de vijanden direct op de speler "plakten". Dit maakte het spel onmogelijk. Ik heb de AI-code bijgestuurd door een `ENEMY_SPEED` variabele en een "grid-centering" logica toe te voegen. Hierdoor bewegen de vijanden nu soepel door het midden van de gangen in plaats van door de muren heen te snijden.
 
-- **Wat ik deed:** `<audio>.play()` in `playCollectSound()` gooide een NotAllowedError.
-- **Wat ik niet wist:** Moderne browsers vereisen minimaal één user-gesture voordat het geluid mag afspelen. Dit is om spamming/malware tegen te gaan.
-- **Mijn oplossing:** Geluidsontgrendeling bij eerste klik op het veld (of knop druk). Daarna speelt `play()` altijd af.
-- **Reflectie:** Dit voelde als "een browsergame", totdat ik besefte dat dit een **serieuze veiligheidsfeature** is. Websites moeten niet zomaar geluid afspelen zonder gebruikerstoestemming.
+#### 3. Audio & Browserbeveiliging
 
-#### 4. Visuele Consistentie: Het Cyberpunk Thema
+- **Wat de AI deed:** Gemini legde uit waarom mijn audio niet afspeelde (de `NotAllowedError`) en gaf de technische oplossing met een `unlockAudio` functie.
+- **Mijn bijsturing:** De AI stelde een simpele "klik ergens op het scherm" oplossing voor. Ik vond dit vanuit UX-standpunt niet mooi. Ik heb dit zelf omgezet naar een functionele Sound Toggle-knop in de HUD. Zo combineerde ik de technische noodzaak van de AI met mijn eigen visie op interface-ontwerp.
 
-- **Wat ik deed:** Orbs in geel (#ffd600), vijanden in rood (#ff1744), muren in paars. Glow-effecten overal (consistent met desktops & controller van MVP 2).
-- **Waarom dit telt:** Een spel voelt "professioneel" niet door mechanics, maar door **cohesie**. Alle elementen "voelen hetzelfde" omdat ze dezelfde kleurpalette en glow-effecten delen.
+#### 4. Kritische blik op "Dode Code"
 
-#### 5. Code-organisatie: Files splitsen
-
-- **Wat ik deed:** desktop.js was 300+ regels (onleesbaar). Ik splitste in desktop-maze.js, desktop-orbs.js, desktop-enemies.js.
-- **Impact:** Veel leesbaar. Elke file ~80-100 regels met één duidelijk doel. Makkelijker te debuggen en uit te breiden (MVP 4: audio-freeze in desktop-audio.js).
+- **Wat de AI deed:** De AI ontdekte variabelen zoals `window._dataChannel` die nergens gelezen werden.
+- **Mijn bijsturing:** Dit was een cruciaal leermoment. Het liet me zien dat ik in eerdere weken code had geaccepteerd zonder volledig te begrijpen of deze noodzakelijk was. Ik heb besloten om een volledige "Cleanup-ronde" te doen waarbij ik elke variabele die de AI als "ongebruikt" markeerde, handmatig heb getraceerd voordat ik deze verwijderde. Dit heeft de codebase aanzienlijk versneld en begrijpelijker gemaakt.
 
 #### Conclusie
 
-MVP 3 was de overgang van **prototype** naar **speelbaar spel**. De AI hielp met architektuurtips, maar de echte implementatie (BFS, Canvas rendering, event listeners) was **mijn werk**. Het voelt goed om te zeggen: "Ik heb dit zelf gebouwd, met AI als stuurman." 
+Deze week leerde ik dat AI-generated code vaak de "optimale" weg kiest voor een geïsoleerd probleem, maar dat ik als ontwikkelaar verantwoordelijk ben voor de integratie. Het omzetten van 350 divs naar één canvas was een technisch advies van de AI, maar de creatieve invulling (de neon-glow en de flow van de game) was mijn eigen regiewerk. 
