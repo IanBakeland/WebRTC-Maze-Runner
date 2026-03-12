@@ -93,13 +93,26 @@
             </svg>
             Kantel om het balletje te bewegen
         </div>
-        <button class="ctrl-pause-btn" id="ctrlPauseBtn">
-            <svg viewBox="0 0 24 24">
-                <rect x="6" y="4" width="4" height="16" rx="1" />
-                <rect x="14" y="4" width="4" height="16" rx="1" />
-            </svg>
-            Pauzeer
-        </button>
+        <div class="ctrl-actions">
+            <button class="ctrl-sound-btn muted" id="ctrlSoundBtn">
+                <svg class="sound-on" viewBox="0 0 24 24">
+                    <path d="M3 9v6h4l5 5V4L7 9H3z" />
+                    <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" />
+                </svg>
+                <svg class="sound-off" viewBox="0 0 24 24">
+                    <path d="M3 9v6h4l5 5V4L7 9H3z" />
+                    <line x1="23" y1="9" x2="17" y2="15" />
+                    <line x1="17" y1="9" x2="23" y2="15" />
+                </svg>
+            </button>
+            <button class="ctrl-pause-btn" id="ctrlPauseBtn">
+                <svg viewBox="0 0 24 24">
+                    <rect x="6" y="4" width="4" height="16" rx="1" />
+                    <rect x="14" y="4" width="4" height="16" rx="1" />
+                </svg>
+                Pauzeer
+            </button>
+        </div>
     </div>
 
     <!-- Screen 5: Paused -->

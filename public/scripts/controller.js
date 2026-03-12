@@ -13,6 +13,17 @@ const servers = {
     iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
 };
 
+// ── Audio (mirrored from desktop) ──
+const ctrlCollectSound = new Audio('/assets/collect.mp3');
+const ctrlSelectSound = new Audio('/assets/select.mp3');
+let ctrlAudioUnlocked = false;
+
+const unlockCtrlAudio = () => {
+    if (ctrlAudioUnlocked) return;
+    ctrlCollectSound.play().then(() => { ctrlCollectSound.pause(); ctrlCollectSound.currentTime = 0; }).catch(() => { });
+    ctrlAudioUnlocked = true;
+};
+
 const getUrlParameter = name => new URLSearchParams(location.search).get(name) || false;
 
 const showScreen = (id) => {
@@ -94,6 +105,7 @@ const onConnected = () => {
 document.getElementById('permBtn').addEventListener('click', async () => {
     const granted = await requestOrientationPermission();
     permissionGranted = granted;
+    unlockCtrlAudio();
     startCountdown();
 });
 
@@ -203,6 +215,17 @@ const callPeer = async (peerId) => {
             startOrientation();
         } else if (message.type === 'game-restart') {
             handlePlayAgain();
+        } else if (message.type === 'sound-state') {
+            const $ctrlSoundBtn = document.getElementById('ctrlSoundBtn');
+            if ($ctrlSoundBtn) $ctrlSoundBtn.classList.toggle('muted', !message.enabled);
+        } else if (message.type === 'play-sound') {
+            if (message.sound === 'collect') {
+                ctrlCollectSound.currentTime = 0;
+                ctrlCollectSound.play().catch(() => { });
+            } else if (message.sound === 'select') {
+                ctrlSelectSound.currentTime = 0;
+                ctrlSelectSound.play().catch(() => { });
+            }
         } else if (message.type === 'orbs-updated') {
             const $orbCounter = document.getElementById('controlOrbCounter');
             if ($orbCounter) {
@@ -242,6 +265,14 @@ const handlePlayAgain = () => {
 
 document.getElementById('ctrlPlayAgainBtn').addEventListener('click', handlePlayAgain);
 document.getElementById('ctrlRetryBtn').addEventListener('click', handlePlayAgain);
+
+// ── Sound toggle from controller ──
+document.getElementById('ctrlSoundBtn').addEventListener('click', () => {
+    unlockCtrlAudio();
+    if (dataChannel && dataChannel.readyState === 'open') {
+        dataChannel.send(JSON.stringify({ type: 'toggle-sound' }));
+    }
+});
 
 // ── Pause / Resume handlers for controller ──
 document.getElementById('ctrlPauseBtn').addEventListener('click', () => {
