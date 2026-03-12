@@ -195,6 +195,11 @@ const callPeer = async (peerId) => {
         } else if (message.type === 'game-over') {
             stopOrientation();
             showScreen('gameOverScreen');
+        } else if (message.type === 'orbs-updated') {
+            const $orbCounter = document.getElementById('controlOrbCounter');
+            if ($orbCounter) {
+                $orbCounter.textContent = `Orbs: ${message.count} / ${message.total}`;
+            }
         }
     };
 

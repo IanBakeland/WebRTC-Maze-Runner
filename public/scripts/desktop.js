@@ -184,6 +184,7 @@ const checkOrbCollision = () => {
             if (soundEnabled) collectSound.play().catch(() => { });
             orbsCollected++;
             if ($orbCounter) $orbCounter.textContent = `${orbsCollected} / ${ORB_COUNT}`;
+            sendToController({ type: 'orbs-updated', count: orbsCollected, total: ORB_COUNT });
             if (orbsCollected >= ORB_COUNT) showVictory();
         }
     }

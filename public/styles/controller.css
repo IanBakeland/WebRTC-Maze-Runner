@@ -297,6 +297,20 @@ body {
     font-size: .85rem;
 }
 
+.orb-counter {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.2rem;
+    color: var(--clr-accent);
+    margin-bottom: 2rem;
+    padding: 0.75rem 1.5rem;
+    background: rgba(0, 229, 255, .05);
+    border: 2px solid rgba(0, 229, 255, .3);
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 0 16px rgba(0, 229, 255, .15);
+    animation: fadeUp .5s .05s ease-out both;
+}
+
 .tilt-visual {
     width: 140px;
     height: 140px;
