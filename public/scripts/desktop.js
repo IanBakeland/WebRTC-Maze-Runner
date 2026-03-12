@@ -29,12 +29,12 @@ let mazeOffsetY = 0;
 
 const ENEMY_COUNT = 2;
 const ENEMY_RADIUS = 12;
-const ENEMY_SPEED = 0.7;
+const ENEMY_SPEED = 1.1;
 let enemies = [];
 let enemyAnimId = null;
 let gameOver = false;
 const ORB_COUNT = 8;
-const ORB_RADIUS = 10;
+const ORB_RADIUS = 16;
 let orbs = [];
 let orbsCollected = 0;
 const $orbCounter = document.getElementById('orbCounter');
