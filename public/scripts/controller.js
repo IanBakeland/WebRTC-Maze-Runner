@@ -39,7 +39,7 @@ const startOrientation = () => {
     orientationActive = true;
 
     let lastSendTime = 0;
-    const SEND_INTERVAL = 33; // ~30fps max over datachannel
+    const SEND_INTERVAL = 16; // ~30fps max over datachannel
 
     orientationHandler = (e) => {
         const beta = e.beta;   // front/back tilt -180..180
