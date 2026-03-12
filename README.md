@@ -423,105 +423,6 @@ Ik heb de tekst doorgelezen en waar nodig bijgestuurd op correctheid.
 
 ---
 
-## 🤖 AI Reflectie
-
-In dit project maak ik gebruik van AI (Copilot en Gemini) als mijn persoonlijke assistent en tutor. Hieronder lees je hoe ik AI precies inzet, per week.
-
-### Week 1 — Waarvoor heb ik AI gebruikt?
-
-- **Uitleg van concepten:**  
-  De GitHub gids uit de les legt goed uit hoe je iets typt, maar soms begreep ik niet precies waarom bepaalde stappen nodig waren. Ik heb AI gevraagd om moeilijke termen zoals **"Signaling"** en het verschil tussen **"WebSockets"** en **"WebRTC"** in simpele woorden uit te leggen.
-
-- **Hulp bij Markdown:**  
-  Omdat ik zelf niet zo goed ben in het schrijven en opmaken van Markdown-bestanden, heb ik AI gevraagd om deze README te structureren. Dit helpt mij om mijn voortgang te gaan presenteren.
-
-- **Code begrijpen:**  
-  Wanneer ik code uit de les-gids kopieerde, heb ik AI gevraagd om per regel uit te leggen wat er gebeurt, zodat ik begreep wat ik juist heb gedaan.
-
-- **Controller page HTML structuur:**  
-  De les-gids geeft voor de controller page (`controller.html`) alleen de JavaScript code, maar geen volledige HTML structuur. AI heeft de HTML eromheen gegenereerd:
-  - `<h1>Controller</h1>` — titel zodat je weet op welke pagina je zit
-  - `<p id="status">Connecting...</p>` — statusmelding zodat je ziet of de verbinding gelukt is
-  - `document.getElementById('status').textContent = ...` — update de status tekst wanneer de socket verbindt
-
-  Ik heb dit toegevoegd omdat de guide alleen de JS logica toont en het zonder HTML structuur niet bruikbaar is. De visuele feedback is belangrijk zodat je als gebruiker weet of je verbonden bent met de desktop.
-
----
-
-### Week 1 — Kritische reflectie
-
-#### Wat ging goed?
-- AI helpt mij om sneller door de stof te gaan die niet diep genoeg wordt uitgelegd in de standaard documentatie.
-- Bij de controller page heeft AI mij geholpen om de gaten in de guide op te vullen (HTML structuur, visuele feedback), zonder dat het de kernlogica veranderde.
-
-#### Wat doe ik zelf?
-- Elke regel code die AI voorstelt test en probeer ik eerst zelf te begrijpen voordat ik het in mijn project zet.
-- De JavaScript logica heb ik zelf uit de les-gids overgenomen. AI heeft hier niets aan veranderd.
-
-#### Waar moet ik op letten?
-- Ik moet opletten dat ik niet blind code overneem. Bij de controller page heb ik bewust gevraagd wat er ontbrak aan de guide-code, zodat ik het verschil begrijp tussen wat uit de les komt en wat AI toevoegt.
-- Het is belangrijk om altijd te weten welke stukken van AI komen, zodat ik dit eerlijk kan verantwoorden.
-
----
-
-### Week 2 — Waarvoor heb ik AI gebruikt?
-
-Tijdens de ontwikkeling van MVP 2 heb ik intensief gebruikgemaakt van generatieve AI (Gemini en Copilot) om de complexe WebRTC-handshake en de visuele game-interface te realiseren.
-
-- **Hulp bij Markdown (README):**  
-  Omdat ik zelf niet goed ben in Markdown, heb ik Copilot gevraagd om de development diary voor week 2 te schrijven en structureren. Ik gaf de punten die ik wilde behandelen en de AI-prompts die ik had gebruikt, en Copilot zette dit om naar een leesbare diary met inklapbare prompt-secties.
-
-- **Architectuur — Van Server naar Peer-to-Peer:**  
-  Gemini hielp me het conceptuele verschil te begrijpen tussen WebSockets (Signaling) en WebRTC (Data Transfer). Zie de prompts in de [MVP 2 diary](#mvp-2-webrtc-data-channels--game-interface).
-
-- **Signaling code toepassen:**  
-  Ik had de code uit de les maar wist niet hoe ik het in mijn project moest integreren. Gemini legde de flow uit (desktop = host, smartphone = controller via QR-code) en gaf een voorbeeld voor QR-code generatie.
-
-- **Visueel ontwerp & interface:**  
-  Copilot genereerde de volledige CSS voor het futuristische thema (desktop én controller) op basis van mijn korte beschrijving.
-
-- **Countdown timer & game flow:**  
-  Copilot maakte de countdown-overlay en het (lege) game-scherm, gesynchroniseerd via het data channel.
-
-- **Gyroscoop & iOS permissies:**  
-  Gemini hielp me de MDN `DeviceOrientationEvent` API toe te passen en het iOS-permissieprobleem op te lossen.
-
-- **Disconnect-afhandeling:**  
-  Gemini gaf drie methodes om verbindingsverlies te detecteren en een code-voorbeeld voor een error-overlay.
-
----
-
-### Week 2 — Kritische reflectie
-
-#### 1. Architectuur: Van Server naar Peer-to-Peer
-
-- **Wat de AI deed:** Gemini hielp me het conceptuele verschil te begrijpen tussen WebSockets (Signaling) en WebRTC (Data Transfer).
-- **Mijn bijsturing:** Hoewel de AI een standaard WebRTC-voorbeeld gaf, heb ik de code uit de les handmatig geïntegreerd in de signaling server. Ik heb de AI-code aangepast zodat de `socket.id` van de desktop specifiek via een QR-code wordt doorgegeven, in plaats van een handmatige ID-invoer. Dit was cruciaal voor de gebruiksvriendelijkheid.
-
-#### 2. De "iOS Barrière" & UX
-
-- **Wat de AI deed:** De AI wees me op de `DeviceOrientationEvent.requestPermission()` API voor iOS en de noodzaak voor HTTPS.
-- **Mijn bijsturing:** De AI stelde voor om de permissie direct bij het laden van de pagina te vragen, maar uit eigen tests bleek dat dit door Safari werd geblokkeerd. Ik heb daarom zelf een "Start Game" flow ontworpen met een expliciet permissie-scherm op de controller. Hierdoor voldoe ik aan de "User Gesture" eis van Apple.
-
-#### 3. Visueel Ontwerp & Feedback
-
-- **Wat de AI deed:** Copilot genereerde de basis CSS voor het futuristische thema en de countdown-animatie.
-- **Mijn bijsturing:** De gegenereerde CSS was erg zwaar. Ik heb de code opgeschoond door onnodige animaties te verwijderen die de latency op mobiele apparaten negatief beïnvloedden. Ook heb ik de "tilt-dot" visualisatie op de controller zelf toegevoegd; de AI wilde alleen de data versturen, maar ik vond dat de gebruiker visuele feedback nodig had op de telefoon zelf om te zien of de sensoren werkten.
-
-#### 4. Foutafhandeling (Disconnects)
-
-- **Wat de AI deed:** Gemini leverde de logica voor `oniceconnectionstatechange`.
-- **Mijn bijsturing:** Ik heb deze logica uitgebreid zodat de desktop niet alleen een foutmelding geeft, maar ook direct de QR-code opnieuw genereert. Dit zorgt ervoor dat de game direct herstartbaar is zonder dat de gebruiker de browser op de desktop hoeft te verversen.
-
-#### 5. De Verschuiving van Ontwerper naar Regisseur
-
-- **Wat me opviel:** Een van de meest verrassende momenten was hoe Copilot, na slechts een korte beschrijving van mijn concept, een interface genereerde die direct de juiste "game-vibe" raakte. De keuze voor het Orbitron-font en het donkere kleurenschema met neon-accenten sloot naadloos aan bij wat ik in mijn hoofd had, zonder dat ik zelf uren in Figma heb gezeten.
-- **Mijn reflectie:** Het voelt ergens onwerkelijk en zelfs een beetje "raar" dat ik zelf zo weinig visueel heb ontworpen, terwijl het resultaat er zo professioneel uitziet. Dit dwong me om mijn rol te herdefinieren: ik was niet de tekenaar, maar de **art director**. Ik moest de output van de AI kritisch beoordelen, de bruikbaarheid testen (waren de knoppen op mobiel groot genoeg?) en de code opschonen waar deze te complex werd. Hoewel de AI het "tekenwerk" deed, bleef ik verantwoordelijk voor de functionele samenhang en de uiteindelijke gebruikerservaring.
-
-#### Conclusie
-
-AI was een enorme versneller voor de boilerplate code (zoals CSS-grids en WebRTC-listeners), maar mijn eigen inbreng was essentieel voor de user experience en het oplossen van apparaat-specifieke problemen (iOS permissies).
-
 ### MVP 3: Maze Game, Orbs, Enemies & Audio
 
 Deze week heb ik het echte speelbare doolhof-spel gebouwd: een recursief gegenereerd labyrint, verzamelbare orbs, intelligente vijanden met pathfinding, en audio-feedback.
@@ -851,97 +752,6 @@ Zie de [Week 4 planning](#week-4--mvp-4-bonus--polish) hierboven:
 - Cross-device testing (iPhone/Android)
 - README & AI reflectie afronden
 
-<details>
-<summary>🤖 AI Reflectie — MVP 3</summary>
-
-## Week 3 — Kritische Reflectie
-
-### 1. De Shift van "Bouwen" naar "Optimaliseren"
-
-**Wat ik deed:**
-- Ik bouwde eerst het doolhof als 350+ DOM divs (standaard instinct).
-- Na performance testen bleek dit een ramp — fps droop naar ~15.
-
-**Wat de AI deed:**
-- Copilot wees op het "Canvas vs. DOM" dilemma.
-- Voorstellen: Render op Canvas i.p.v. DOM.
-
-**Mijn bijsturing:**
-- Ik heb zelf Canvas geimplementeerd, maar eerst moest ik de native Canvas API begrijpen.
-- Slimmere inzicht: Backend-rendering (Canvas) is sneller dan frontend-dom-manipulation voor grote aantallen elementen.
-
-**Lering:** Performance problemen vereisen soms architecturale keuzes, niet alleen CSS hacks. AI helpt de symptomen te diagnosticeren, maar ik moest zelf de remedie implementeren.
-
----
-
-### 2. Pathfinding: Van "Probeer alles" naar "Wees intelligent"
-
-**Wat ik wilde:**
-- Vijanden die de speler "stompzinnig" achtervolgen (altijd naar de dichtsbijzijnde speler).
-
-**Wat de AI opperde:**
-- BFS zou eleganter zijn — kortste pad altijd.
-
-**Mijn bijsturing:**
-- Ik implementeerde BFS eerst als pure JavaScript (geen libraries).
-- Dit was een **Aha!-moment**: BFS is niet moeilijk, je hoeft alleen maar een queue bij te houden en te controleren of je de goal hebt bereikt.
-- Snelheid: Zelfs met BFS is pathfinding per-frame **nog steeds snel** omdat het grid klein is (25×14 cells).
-
-**Lering:** Algoritme-keuzes matter. Beginnercodeers kiezen vaak voor "brute force", maar kleine algoritme-verbeteringen geven dramatische winsten.
-
----
-
-### 3. Audio-ontgrendeling: Een Browserprobleempje
-
-**Wat ik deed:**
-- `<audio>.play()` in `playCollectSound()` gooide een NotAllowedError.
-
-**Wat ik niet wist:**
-- Moderne browsers vereisen minimaal één user-gesture voordat het geluid mag schuiven. Dit is om spamming/malware tegen te gaan.
-
-**Mijn oplossing:**
-- Geluidsontgrendeling bij eerste klik op het veld (of knop druk).
-- Après this, speelt `play()` altijd af.
-
-**Reflectie:**
-- Dit voelde als "een browsergame", totdat ik besefte dat dit een **serieuze veiligheidsfeature** is. Websites moeten niet zomaar geluid afspelen zonder gebruikerstoestemming.
-
----
-
-### 4. Visuele Consistentie: Het Cyberpunk Thema
-
-**Wat ik deed:**
-- Orbs in geel (#ffd600), vijanden in rood (#ff1744), muren in paars.
-- Glow-effecten overal (consistent met desktops & controller van MVP 2).
-
-**Waarom dit telt:**
-- Een spel voelt "professioneel" niet door mechanics, maar door **cohesie**.
-- Alle elementen "voelen hetzelfde" omdat ze dezelfde kleurpalette en glow-effecten delen.
-- Dit zou ik **niet** mogen onderschatten in de AI-fase.
-
----
-
-### 5. Code-organisatie: Files splitsen
-
-**Wat ik deed:**
-- desktop.js was 300+ regels (onleesbaar).
-- Ik splitste in desktop-maze.js, desktop-orbs.js, desktop-enemies.js.
-
-**Impact:**
-- Veel leesbaar. Elke file ~80-100 regels met één duidelijk doel.
-- Makkelijker te debuggen (break points in specifieke functies).
-- Makkelijker uit te breiden (MVP 4: audio-freeze in desktop-audio.js).
-
----
-
-## Conclusie
-
-MVP 3 was de overgang van **prototype** naar **speelbaar spel**. De AI hielp met architektuurtips, maar de echte implementatie (BFS, Canvas rendering, event listeners) was **mijn werk**.
-
-Het voelt goed om te zeggen: "Ik heb dit zelf gebouwd, met AI als stuurman."
-
-</details>
-
 ---
 
 ## 🤖 AI Reflectie
@@ -967,6 +777,8 @@ In dit project maak ik gebruik van AI (Copilot en Gemini) als mijn persoonlijke 
 
   Ik heb dit toegevoegd omdat de guide alleen de JS logica toont en het zonder HTML structuur niet bruikbaar is. De visuele feedback is belangrijk zodat je als gebruiker weet of je verbonden bent met de desktop.
 
+---
+
 ### Week 1 — Kritische reflectie
 
 #### Wat ging goed?
@@ -991,7 +803,7 @@ Tijdens de ontwikkeling van MVP 2 heb ik intensief gebruikgemaakt van generatiev
   Omdat ik zelf niet goed ben in Markdown, heb ik Copilot gevraagd om de development diary voor week 2 te schrijven en structureren. Ik gaf de punten die ik wilde behandelen en de AI-prompts die ik had gebruikt, en Copilot zette dit om naar een leesbare diary met inklapbare prompt-secties.
 
 - **Architectuur — Van Server naar Peer-to-Peer:**  
-  Gemini hielp me het conceptuele verschil te begrijpen tussen WebSockets (Signaling) en WebRTC (Data Transfer).
+  Gemini hielp me het conceptuele verschil te begrijpen tussen WebSockets (Signaling) en WebRTC (Data Transfer). Zie de prompts in de [MVP 2 diary](#mvp-2-webrtc-data-channels--game-interface).
 
 - **Signaling code toepassen:**  
   Ik had de code uit de les maar wist niet hoe ik het in mijn project moest integreren. Gemini legde de flow uit (desktop = host, smartphone = controller via QR-code) en gaf een voorbeeld voor QR-code generatie.
@@ -1007,6 +819,8 @@ Tijdens de ontwikkeling van MVP 2 heb ik intensief gebruikgemaakt van generatiev
 
 - **Disconnect-afhandeling:**  
   Gemini gaf drie methodes om verbindingsverlies te detecteren en een code-voorbeeld voor een error-overlay.
+
+---
 
 ### Week 2 — Kritische reflectie
 
@@ -1037,4 +851,43 @@ Tijdens de ontwikkeling van MVP 2 heb ik intensief gebruikgemaakt van generatiev
 
 #### Conclusie
 
-AI was een enorme versneller voor de boilerplate code (zoals CSS-grids en WebRTC-listeners), maar mijn eigen inbreng was essentieel voor de user experience en het oplossen van apparaat-specifieke problemen (iOS permissies). 
+AI was een enorme versneller voor de boilerplate code (zoals CSS-grids en WebRTC-listeners), maar mijn eigen inbreng was essentieel voor de user experience en het oplossen van apparaat-specifieke problemen (iOS permissies).
+
+---
+
+### Week 3 — Kritische Reflectie
+
+#### 1. De Shift van "Bouwen" naar "Optimaliseren"
+
+- **Wat ik deed:** Ik bouwde eerst het doolhof als 350+ DOM divs (standaard instinct). Na performance testen bleek dit een ramp — fps droop naar ~15.
+- **Wat de AI deed:** Copilot wees op het "Canvas vs. DOM" dilemma en stelde voor om op Canvas te renderen i.p.v. DOM.
+- **Mijn bijsturing:** Ik heb zelf Canvas geïmplementeerd, maar eerst moest ik de native Canvas API begrijpen. Backend-rendering (Canvas) is sneller dan frontend-dom-manipulation voor grote aantallen elementen.
+- **Lering:** Performance problemen vereisen soms architecturale keuzes, niet alleen CSS hacks. AI helpt de symptomen te diagnosticeren, maar ik moest zelf de remedie implementeren.
+
+#### 2. Pathfinding: Van "Probeer alles" naar "Wees intelligent"
+
+- **Wat ik wilde:** Vijanden die de speler "stompzinnig" achtervolgen (altijd naar de dichtsbijzijnde speler).
+- **Wat de AI opperde:** BFS zou eleganter zijn — kortste pad altijd.
+- **Mijn bijsturing:** Ik implementeerde BFS eerst als pure JavaScript (geen libraries). Dit was een **Aha!-moment**: BFS is niet moeilijk, je hoeft alleen maar een queue bij te houden en te controleren of je de goal hebt bereikt. Zelfs met BFS is pathfinding per-frame **nog steeds snel** omdat het grid klein is (25×14 cells).
+- **Lering:** Algoritme-keuzes matter. Beginnercodeers kiezen vaak voor "brute force", maar kleine algoritme-verbeteringen geven dramatische winsten.
+
+#### 3. Audio-ontgrendeling: Een Browserprobleempje
+
+- **Wat ik deed:** `<audio>.play()` in `playCollectSound()` gooide een NotAllowedError.
+- **Wat ik niet wist:** Moderne browsers vereisen minimaal één user-gesture voordat het geluid mag afspelen. Dit is om spamming/malware tegen te gaan.
+- **Mijn oplossing:** Geluidsontgrendeling bij eerste klik op het veld (of knop druk). Daarna speelt `play()` altijd af.
+- **Reflectie:** Dit voelde als "een browsergame", totdat ik besefte dat dit een **serieuze veiligheidsfeature** is. Websites moeten niet zomaar geluid afspelen zonder gebruikerstoestemming.
+
+#### 4. Visuele Consistentie: Het Cyberpunk Thema
+
+- **Wat ik deed:** Orbs in geel (#ffd600), vijanden in rood (#ff1744), muren in paars. Glow-effecten overal (consistent met desktops & controller van MVP 2).
+- **Waarom dit telt:** Een spel voelt "professioneel" niet door mechanics, maar door **cohesie**. Alle elementen "voelen hetzelfde" omdat ze dezelfde kleurpalette en glow-effecten delen.
+
+#### 5. Code-organisatie: Files splitsen
+
+- **Wat ik deed:** desktop.js was 300+ regels (onleesbaar). Ik splitste in desktop-maze.js, desktop-orbs.js, desktop-enemies.js.
+- **Impact:** Veel leesbaar. Elke file ~80-100 regels met één duidelijk doel. Makkelijker te debuggen en uit te breiden (MVP 4: audio-freeze in desktop-audio.js).
+
+#### Conclusie
+
+MVP 3 was de overgang van **prototype** naar **speelbaar spel**. De AI hielp met architektuurtips, maar de echte implementatie (BFS, Canvas rendering, event listeners) was **mijn werk**. Het voelt goed om te zeggen: "Ik heb dit zelf gebouwd, met AI als stuurman." 
