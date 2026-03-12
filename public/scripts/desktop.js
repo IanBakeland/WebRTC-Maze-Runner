@@ -77,10 +77,9 @@ const setSoundEnabled = (enabled) => {
     if (soundEnabled) {
         selectSound.currentTime = 0;
         selectSound.play().catch(() => { });
-        sendToController({ type: 'play-sound', sound: 'select' });
+        if (!gameOver && !gamePaused) bgMusic.play().catch(() => { });
     } else {
         bgMusic.pause();
-        sendToController({ type: 'play-sound', sound: 'bgmusic-pause' });
     }
     sendToController({ type: 'sound-state', enabled: soundEnabled });
 };
@@ -190,11 +189,11 @@ const checkOrbCollision = () => {
         if (dx * dx + dy * dy < (ballRadius + ORB_RADIUS) * (ballRadius + ORB_RADIUS)) {
             orb.collected = true;
             orb.el.classList.add('collected');
-            collectSound.currentTime = 0;
             if (soundEnabled) {
+                collectSound.currentTime = 0;
                 collectSound.play().catch(() => { });
-                sendToController({ type: 'play-sound', sound: 'collect' });
             }
+
             orbsCollected++;
             if ($orbCounter) $orbCounter.textContent = `${orbsCollected} / ${ORB_COUNT}`;
             sendToController({ type: 'orbs-updated', count: orbsCollected, total: ORB_COUNT });
@@ -254,7 +253,6 @@ const pauseGame = () => {
     gamePaused = true;
     if (enemyAnimId) { cancelAnimationFrame(enemyAnimId); enemyAnimId = null; }
     bgMusic.pause();
-    sendToController({ type: 'play-sound', sound: 'bgmusic-pause' });
     if ($pauseOverlay) $pauseOverlay.classList.add('active');
     sendToController({ type: 'paused' });
 };
@@ -266,7 +264,6 @@ const resumeGame = () => {
     startEnemyLoop();
     if (soundEnabled) {
         bgMusic.play().catch(() => { });
-        sendToController({ type: 'play-sound', sound: 'bgmusic-play' });
     }
     sendToController({ type: 'resumed' });
 };
@@ -413,7 +410,6 @@ const triggerGameOver = () => {
     gameOver = true;
     if (enemyAnimId) { cancelAnimationFrame(enemyAnimId); enemyAnimId = null; }
     bgMusic.pause();
-    sendToController({ type: 'play-sound', sound: 'bgmusic-pause' });
     if ($gameOverOverlay) $gameOverOverlay.classList.add('active');
     sendToController({ type: 'game-over' });
 };
@@ -586,7 +582,6 @@ const startCountdown = () => {
                 initBall();
                 if (soundEnabled) {
                     bgMusic.play().catch(() => { });
-                    sendToController({ type: 'play-sound', sound: 'bgmusic-play' });
                 }
             }, 800);
         }
@@ -615,7 +610,6 @@ const handleDisconnect = () => {
             document.getElementById('gameScreen').classList.remove('active');
             bgMusic.pause();
             bgMusic.currentTime = 0;
-            sendToController({ type: 'play-sound', sound: 'bgmusic-stop' });
             $cursor.style.display = 'none';
             $statusDot.classList.remove('connected');
             $status.textContent = 'Wachten op controller…';
