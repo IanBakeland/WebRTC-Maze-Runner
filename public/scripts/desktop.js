@@ -6,6 +6,7 @@ const $controllerLink = document.getElementById('controllerLink');
 
 let socket;
 let peerConnection;
+let dataChannel;
 
 const servers = {
     iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
@@ -38,9 +39,7 @@ let orbs = [];
 let orbsCollected = 0;
 const $orbCounter = document.getElementById('orbCounter');
 const $victoryOverlay = document.getElementById('victoryOverlay');
-const $playAgainBtn = document.getElementById('playAgainBtn');
 const $gameOverOverlay = document.getElementById('gameOverOverlay');
-const $retryBtn = document.getElementById('retryBtn');
 const collectSound = new Audio('/assets/collect.mp3');
 const selectSound = new Audio('/assets/select.mp3');
 const bgMusic = new Audio('/assets/backgroundmusic.mp3');
@@ -186,10 +185,19 @@ const checkOrbCollision = () => {
     }
 };
 
+const sendToController = (msg) => {
+    if (dataChannel && dataChannel.readyState === 'open') {
+        dataChannel.send(JSON.stringify(msg));
+    }
+};
+
 const showVictory = () => {
     if (!$victoryOverlay) return;
+    gameOver = true;
+    if (enemyAnimId) { cancelAnimationFrame(enemyAnimId); enemyAnimId = null; }
     $victoryOverlay.classList.add('active');
     spawnConfetti();
+    sendToController({ type: 'victory' });
 };
 
 const spawnConfetti = () => {
@@ -217,8 +225,7 @@ const resetGame = () => {
     initBall();
 };
 
-if ($playAgainBtn) $playAgainBtn.addEventListener('click', resetGame);
-if ($retryBtn) $retryBtn.addEventListener('click', resetGame);
+
 
 // ── Enemies (rode bolletjes) ──
 const spawnEnemies = () => {
@@ -359,6 +366,7 @@ const triggerGameOver = () => {
     if (enemyAnimId) { cancelAnimationFrame(enemyAnimId); enemyAnimId = null; }
     bgMusic.pause();
     if ($gameOverOverlay) $gameOverOverlay.classList.add('active');
+    sendToController({ type: 'game-over' });
 };
 
 const renderMaze = () => {
@@ -585,8 +593,8 @@ const answerPeerOffer = async (offer, peerId) => {
 
     peerConnection.ondatachannel = (e) => {
         console.log('Data channel received:', e.channel.label);
-        const channel = e.channel;
-        channel.onmessage = (event) => {
+        dataChannel = e.channel;
+        dataChannel.onmessage = (event) => {
             const message = JSON.parse(event.data);
             if (message.type === 'cursor') {
                 $cursor.style.display = 'block';
@@ -596,13 +604,15 @@ const answerPeerOffer = async (offer, peerId) => {
                 handleTilt(message.beta, message.gamma);
             } else if (message.type === 'countdown-ready') {
                 startCountdown();
+            } else if (message.type === 'play-again') {
+                resetGame();
             }
         };
-        channel.onopen = () => {
+        dataChannel.onopen = () => {
             console.log('Data channel open!');
             $statusDot.classList.add('connected');
             // Tell the controller we're connected; it may show permission screen first
-            channel.send(JSON.stringify({ type: 'countdown-start' }));
+            dataChannel.send(JSON.stringify({ type: 'countdown-start' }));
             $status.textContent = 'Controller verbonden!';
         };
     };

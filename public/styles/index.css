@@ -835,7 +835,7 @@ body {
 .victory-msg {
     font-size: 1rem;
     color: var(--clr-dim);
-    margin-bottom: 2.5rem;
+    margin-bottom: 1.5rem;
     text-align: center;
     animation: fadeUp .6s .2s ease-out both;
 }
@@ -933,9 +933,18 @@ body {
 .gameover-msg {
     font-size: 1rem;
     color: var(--clr-dim);
-    margin-bottom: 2.5rem;
+    margin-bottom: 1.5rem;
     text-align: center;
     animation: fadeUp .6s .2s ease-out both;
+}
+
+.overlay-hint {
+    font-family: 'Orbitron', sans-serif;
+    font-size: .75rem;
+    letter-spacing: 1px;
+    color: var(--clr-dim);
+    opacity: .7;
+    animation: fadeUp .6s .3s ease-out both;
 }
 
 .gameover-btn {

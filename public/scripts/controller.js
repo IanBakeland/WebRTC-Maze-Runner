@@ -185,6 +185,12 @@ const callPeer = async (peerId) => {
         const message = JSON.parse(event.data);
         if (message.type === 'countdown-start') {
             onConnected();
+        } else if (message.type === 'victory') {
+            stopOrientation();
+            showScreen('victoryScreen');
+        } else if (message.type === 'game-over') {
+            stopOrientation();
+            showScreen('gameOverScreen');
         }
     };
 
@@ -209,6 +215,16 @@ const sendCursorData = (x, y) => {
     if (!dataChannel || dataChannel.readyState !== 'open') return;
     dataChannel.send(JSON.stringify({ type: 'cursor', x, y }));
 };
+
+const handlePlayAgain = () => {
+    if (dataChannel && dataChannel.readyState === 'open') {
+        dataChannel.send(JSON.stringify({ type: 'play-again' }));
+    }
+    startCountdown();
+};
+
+document.getElementById('ctrlPlayAgainBtn').addEventListener('click', handlePlayAgain);
+document.getElementById('ctrlRetryBtn').addEventListener('click', handlePlayAgain);
 
 const init = () => {
     targetSocketId = getUrlParameter('id');

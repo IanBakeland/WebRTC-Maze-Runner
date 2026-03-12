@@ -94,7 +94,33 @@
         </div>
     </div>
 
-    <!-- Screen 5: Disconnected -->
+    <!-- Screen 5: Victory -->
+    <div class="screen" id="victoryScreen">
+        <div class="result-icon victory-icon">
+            <svg viewBox="0 0 24 24">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14l-5-4.87 6.91-1.01z" />
+            </svg>
+        </div>
+        <div class="result-title victory-title">Gewonnen!</div>
+        <div class="result-msg">Alle orbs verzameld. Goed gespeeld!</div>
+        <button class="result-btn" id="ctrlPlayAgainBtn">Opnieuw spelen</button>
+    </div>
+
+    <!-- Screen 6: Game Over -->
+    <div class="screen" id="gameOverScreen">
+        <div class="result-icon gameover-icon">
+            <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="15" y1="9" x2="9" y2="15" />
+                <line x1="9" y1="9" x2="15" y2="15" />
+            </svg>
+        </div>
+        <div class="result-title gameover-title">Game Over</div>
+        <div class="result-msg">Je bent gepakt door een vijand!</div>
+        <button class="result-btn" id="ctrlRetryBtn">Opnieuw spelen</button>
+    </div>
+
+    <!-- Screen 7: Disconnected -->
     <div class="screen" id="disconnectScreen">
         <div class="disconnect-icon">
             <svg viewBox="0 0 24 24">
