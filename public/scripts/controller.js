@@ -162,7 +162,7 @@ const setFreezeState = (state) => {
 
     if (state === 'ready') {
         $blowAbility.classList.add('ready');
-        $blowLabel.textContent = 'Zeg "Freeze"';
+        $blowLabel.textContent = 'Zeg "Stop"';
         $blowRingFill.style.strokeDashoffset = '0';
     } else if (state === 'active') {
         $blowAbility.classList.add('active');
@@ -232,12 +232,12 @@ const initFreezeAbility = async () => {
         recognition = new SpeechRecognition();
         recognition.continuous = true;
         recognition.interimResults = true;
-        recognition.lang = 'en-US';
+        recognition.lang = 'nl-NL';
 
         recognition.onresult = (event) => {
             for (let i = event.resultIndex; i < event.results.length; i++) {
                 const transcript = event.results[i][0].transcript.toLowerCase().trim();
-                if (transcript.includes('freeze') || transcript.includes('fries') || transcript.includes('trees')) {
+                if (transcript.includes('stop') || transcript.includes('stap') || transcript.includes('top')) {
                     triggerFreeze();
                     break;
                 }
@@ -270,13 +270,14 @@ const initFreezeAbility = async () => {
 
 const stopFreezeMonitoring = () => {
     stopRecognition();
+    freezeState = 'idle';
 };
 
 const resetFreezeAbility = () => {
     stopRecognition();
     freezeState = 'idle';
     $blowAbility.classList.remove('ready', 'active', 'cooldown');
-    $blowLabel.textContent = 'Zeg "Freeze"';
+    $blowLabel.textContent = 'Zeg "Stop"';
     $blowRingFill.style.strokeDashoffset = '0';
 };
 

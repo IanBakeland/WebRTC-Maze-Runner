@@ -32,7 +32,7 @@ Je smartphone is de controller. Kantel je telefoon naar links → het balletje r
 | 1    | **MVP 1** — Signaling & Setup  | ✅ Klaar   | `main`                  | ~6 uur         | ~~28 feb~~   |
 | 2    | **MVP 2** — WebRTC & Interface | ✅ Klaar   | `feature/mazerunner-ui` | ~10 uur        | ~~7 maart~~  |
 | 3    | **MVP 3** — Maze Game          | ✅ Klaar   | `feature/maze-game`     | ~5 uur         | ~~14 maart~~ |
-| 4    | **MVP 4** — Bonus & Polish     | 🔲 Gepland | `feature/audio-freeze`  | ~5 uur         | 21 maart     |
+| 4    | **MVP 4** — Bonus & Polish     | ✅ Klaar   | `feature/audio-freeze`  | ~5 uur         | ~~21 maart~~ |
 
 ### MVP 1 — Signaling & Setup ✅
 
@@ -73,18 +73,22 @@ Je smartphone is de controller. Kantel je telefoon naar links → het balletje r
 
 **Oplevering:** Volledig speelbaar doolhof-spel bestuurd met smartphone gyroscoop.
 
-### MVP 4 — Bonus & Polish 🔲
+### MVP 4 — Bonus & Polish ✅
 
-| Taak                                               | Tijd  | Deadline | Status    |
-| -------------------------------------------------- | ----- | -------- | --------- |
-| Microfoon-input via `getUserMedia` + Web Audio API | 1u    | 16 maart | 🔲 Gepland |
-| Blazen detecteren → enemy freeze (2s) + cooldown   | 1u    | 17 maart | 🔲 Gepland |
-| UI/UX afwerking: game over/win scherm, HUD         | 0,75u | 18 maart | 🔲 Gepland |
-| Testen op iPhone + Android                         | 1u    | 19 maart | 🔲 Gepland |
-| README, AI reflectie en documentatie afronden      | 0,75u | 20 maart | 🔲 Gepland |
-| Zip klaarmaken en inleveren                        | 0,2u  | 21 maart | 🔲 Gepland |
+| Taak                                                          | Tijd  | Deadline | Status  |
+| ------------------------------------------------------------- | ----- | -------- | ------- |
+| Victory/Game Over schermen op controller tonen via datachannel | 0,5u  | 15 maart | ✅ Klaar |
+| Vijanden stoppen bij victory (bug fix)                        | 0,25u | 15 maart | ✅ Klaar |
+| Vijanden overlappen voorkomen (enemy separation)              | 0,5u  | 15 maart | ✅ Klaar |
+| Geluidstoggle op controller (remote mute)                    | 0,5u  | 16 maart | ✅ Klaar |
+| Sessie room code (server + desktop + controller)             | 1u    | 16 maart | ✅ Klaar |
+| Spraakcommando "Stop" → enemy freeze (4s) + cooldown (10s)   | 1,5u  | 17 maart | ✅ Klaar |
+| Pause/Resume flow (controller + desktop)                     | 0,5u  | 17 maart | ✅ Klaar |
+| Orb counter sync naar controller                             | 0,25u | 17 maart | ✅ Klaar |
+| Microfoonfix na game restart                                 | 0,25u | 17 maart | ✅ Klaar |
+| README, AI reflectie en documentatie afronden                | 0,75u | 18 maart | ✅ Klaar |
 
-**Oplevering:** Bonuspunten — audio channel integratie + gepolijste eindversie.
+**Oplevering:** Bonuspunten — spraakcommando integratie, cross-device UI synchronisatie, en gepolijste eindversie.
 
 > 📌 **Buffer:** 21 maart alles af → 1 dag buffer vóór de deadline van 22 maart.
 
@@ -1278,14 +1282,434 @@ Deze week heb ik het echte speelbare doolhof-spel gebouwd: een recursief gegener
 
 ---
 
-#### Plan voor volgende week (MVP 4)
+---
 
-Zie de [Week 4 planning](#week-4--mvp-4-bonus--polish) hierboven: 
-- Audio: Microfoon-input via `getUserMedia` + Web Audio API
-- "Blazen detecteren" → Vijanden bevriezen voor 2 seconden + cooldown
-- UI/UX: Game over/win schermen polijsten
-- Cross-device testing (iPhone/Android)
-- README & AI reflectie afronden
+### MVP 4: Spraakcommando, Cross-Device UI & Polish
+
+Deze week heb ik het spel afgewerkt met een spraakgestuurde ability, cross-device UI synchronisatie (victory/game-over/pause op de controller), een sessie room code, geluidsbediening vanaf de controller, en diverse bugfixes.
+
+---
+
+- **Victory/Game Over schermen op de controller via datachannel**  
+  Voorheen zag je op de controller niets wanneer je won of verloor — alleen de desktop toonde een overlay. Nu stuurt de desktop een `{ type: 'victory' }` of `{ type: 'game-over' }` bericht via het datachannel naar de controller, die dan het bijbehorende scherm toont met een "Opnieuw spelen" knop.
+
+  <details>
+  <summary>🤖 AI Prompt — Victory/Game Over op controller tonen</summary>
+
+  > **Mijn prompt:**  
+  > *"Ook zou ik willen dat de victory screen of lose screen met play again ook op de controller wordt getoond"*
+
+  **Copilot antwoordde:**  
+  Copilot stelde voor om het datachannel te gebruiken om events door te sturen:
+  1. **Desktop:** Bij `showVictory()` en `triggerGameOver()` een bericht sturen via `dataChannel.send()`.
+  2. **Controller:** Twee nieuwe schermen toevoegen (victory + game over) en een `onmessage` handler die het juiste scherm toont.
+  3. **Play Again:** De controller stuurt `{ type: 'play-again' }` terug naar de desktop, die `resetGame()` aanroept.
+
+  Na een vervolgprompt heb ik de "Opnieuw spelen" knop verwijderd van de desktop-overlays — alleen de controller mag het spel herstarten:
+
+  > **Mijn vervolgprompt:**  
+  > *"De victory screen en lose screen mogen getoond worden op de desktop maar niet play again. Dit enkel op de controller."*
+  </details>
+
+  **Toegevoegde code — Desktop stuurt events (desktop.js):**
+  ```js
+  const sendToController = (msg) => {
+      if (dataChannel && dataChannel.readyState === 'open') {
+          dataChannel.send(JSON.stringify(msg));
+      }
+  };
+
+  const showVictory = () => {
+      if (!$victoryOverlay) return;
+      gameOver = true;
+      if (enemyAnimId) { cancelAnimationFrame(enemyAnimId); enemyAnimId = null; }
+      $victoryOverlay.classList.add('active');
+      spawnConfetti();
+      sendToController({ type: 'victory' });
+  };
+
+  const triggerGameOver = () => {
+      gameOver = true;
+      if (enemyAnimId) { cancelAnimationFrame(enemyAnimId); enemyAnimId = null; }
+      bgMusic.pause();
+      if ($gameOverOverlay) $gameOverOverlay.classList.add('active');
+      sendToController({ type: 'game-over' });
+  };
+  ```
+
+  **Controller ontvangt events (controller.js):**
+  ```js
+  } else if (message.type === 'victory') {
+      stopOrientation();
+      stopFreezeMonitoring();
+      showScreen('victoryScreen');
+  } else if (message.type === 'game-over') {
+      stopOrientation();
+      stopFreezeMonitoring();
+      showScreen('gameOverScreen');
+  }
+  ```
+
+---
+
+- **Vijanden stoppen bij victory (bug fix)**  
+  Na het verzamelen van alle orbs en het tonen van de victory screen, bleven de rode vijanden in de achtergrond bewegen en konden ze je alsnog raken — waardoor een game over getriggerd werd terwijl je al gewonnen had.
+
+  <details>
+  <summary>🤖 AI Prompt — Vijanden stoppen bij winst</summary>
+
+  > **Mijn prompt:**  
+  > *"Als je alle bollen verzameld hebt en op de victory screen bent, kan je nog altijd verliezen omdat in de achtergrond de rode ballen je kunnen pakken. Zou je ervoor zorgen wanneer je gewonnen hebt dat de rode bollen verdwijnen of als je iets beter hebt."*
+
+  **Copilot antwoordde:**  
+  De simpelste fix is om bij `showVictory()` de `gameOver` flag op `true` te zetten en de enemy animation loop te stoppen met `cancelAnimationFrame`. Aangezien `checkEnemyCollision()` al een `if (gameOver) return` check heeft, voorkomt dit dat er nog een game over getriggerd wordt.
+  </details>
+
+  **Toegevoegde code (desktop.js):**
+  ```js
+  const showVictory = () => {
+      if (!$victoryOverlay) return;
+      gameOver = true;  // ← voorkomt dat checkEnemyCollision nog triggert
+      if (enemyAnimId) { cancelAnimationFrame(enemyAnimId); enemyAnimId = null; }  // ← stopt enemy movement
+      $victoryOverlay.classList.add('active');
+      spawnConfetti();
+      sendToController({ type: 'victory' });
+  };
+  ```
+
+---
+
+- **Vijanden overlappen voorkomen (enemy separation)**  
+  De twee rode vijanden konden soms exact dezelfde positie innemen, waardoor het visueel leek alsof er maar één bal was. Dit maakte het spel verwarrend.
+
+  <details>
+  <summary>🤖 AI Prompt — Enemy separation</summary>
+
+  > **Mijn prompt:**  
+  > *"The game has two red enemy balls that try to catch the player. Right now, they can sometimes overlap each other, which makes it look like there is only one ball. Please make sure the two enemy balls cannot occupy the same position or overlap visually."*
+
+  **Copilot antwoordde:**  
+  Na elke frame's pathfinding-beweging worden vijanden die dichter dan `ENEMY_RADIUS * 3` (36px) bij elkaar zijn, symmetrisch uit elkaar geduwd langs hun verbindingsas. Dit zorgt ervoor dat beide ballen altijd zichtbaar blijven terwijl ze nog steeds de speler achtervolgen.
+  </details>
+
+  **Toegevoegde code — Repulsion in `startEnemyLoop()` (desktop.js):**
+  ```js
+  const startEnemyLoop = () => {
+      const MIN_DIST = ENEMY_RADIUS * 3;
+      const tick = () => {
+          if (gameOver || gamePaused || !ballInitialized) return;
+          if (!enemiesFrozen) {
+              for (const enemy of enemies) {
+                  moveEnemyTowardPlayer(enemy);
+              }
+              // Enemy-to-enemy separation
+              for (let i = 0; i < enemies.length; i++) {
+                  for (let j = i + 1; j < enemies.length; j++) {
+                      const a = enemies[i];
+                      const b = enemies[j];
+                      const dx = b.x - a.x;
+                      const dy = b.y - a.y;
+                      const dist = Math.sqrt(dx * dx + dy * dy) || 0.1;
+                      if (dist < MIN_DIST) {
+                          const overlap = (MIN_DIST - dist) / 2;
+                          const nx = dx / dist;
+                          const ny = dy / dist;
+                          a.x -= nx * overlap;
+                          a.y -= ny * overlap;
+                          b.x += nx * overlap;
+                          b.y += ny * overlap;
+                      }
+                  }
+              }
+          }
+          for (const enemy of enemies) {
+              enemy.el.style.left = enemy.x + 'px';
+              enemy.el.style.top = enemy.y + 'px';
+          }
+          enemyAnimId = requestAnimationFrame(tick);
+      };
+      enemyAnimId = requestAnimationFrame(tick);
+  };
+  ```
+
+---
+
+- **Geluidstoggle op controller (remote mute via datachannel)**  
+  De controller heeft nu een mute-knop waarmee je het geluid op de desktop aan/uit kunt zetten — zonder dat de controller zelf geluid afspeelt.
+
+  <details>
+  <summary>🤖 AI Prompt — Haptiek en geluid via WebRTC</summary>
+
+  > **Mijn prompt:**  
+  > *"Is het mogelijk om haptiek te gaan toevoegen via WebRTC?"*
+
+  **Gemini antwoordde:**  
+  Ja, via de `navigator.vibrate()` API kun je de smartphone laten trillen. Stuur een `{ type: 'vibrate', pattern: 50 }` bericht via het datachannel en roep `navigator.vibrate(msg.pattern)` aan op de controller.
+
+  **Maar:** iOS (Safari) ondersteunt `navigator.vibrate()` niet. Gemini stelde "Visual Haptics" voor als alternatief (rood schermflits).
+
+  > **Mijn vervolgprompt:**  
+  > *"En iOS?"*
+
+  **Gemini antwoordde:**  
+  Apple blokkeert de standaard `navigator.vibrate()` API in Safari. Alternatieven:
+  1. **Visual haptics** — korte rode schermflits als visuele feedback.
+  2. **Audio haptics** — kort "tik" geluidje op de smartphone.
+
+  Uiteindelijk heb ik gekozen voor een geluidstoggle op de controller als remote bediening voor het desktopgeluid.
+  </details>
+
+  **Toegevoegde code — Controller stuurt toggle (controller.js):**
+  ```js
+  document.getElementById('ctrlSoundBtn').addEventListener('click', () => {
+      if (dataChannel && dataChannel.readyState === 'open') {
+          dataChannel.send(JSON.stringify({ type: 'toggle-sound' }));
+      }
+  });
+  ```
+
+  **Desktop ontvangt toggle + stuurt status terug (desktop.js):**
+  ```js
+  } else if (message.type === 'toggle-sound') {
+      unlockAudio();
+      setSoundEnabled(!soundEnabled);
+  }
+
+  const setSoundEnabled = (enabled) => {
+      soundEnabled = enabled;
+      // ... update UI ...
+      if (soundEnabled) {
+          if (!gameOver && !gamePaused) bgMusic.play().catch(() => { });
+      } else {
+          bgMusic.pause();
+      }
+      sendToController({ type: 'sound-state', enabled: soundEnabled });
+  };
+  ```
+
+---
+
+- **Sessie room code (server + desktop + controller)**  
+  Elke verbinding krijgt nu een unieke 4-karakter room code (bijv. `A3K7`) zodat spelers kunnen bevestigen dat ze met het juiste apparaat verbonden zijn.
+
+  <details>
+  <summary>🤖 AI Prompt — Room code implementeren</summary>
+
+  > **Mijn prompt:**  
+  > *"Implementing Session Room Code"*
+
+  **Copilot antwoordde:**  
+  Copilot implementeerde de volledige room code feature over 7 bestanden:
+  1. **Server (`index.js`):** Genereert een 4-karakter code met ondubbelzinnige tekens (geen 0/O/I/l).
+  2. **Desktop (`desktop.js`):** Ontvangt de code via Socket.io en toont deze in een badge onder de QR-code + in de game HUD.
+  3. **Controller (`controller.js`):** Ontvangt de code via het datachannel en toont deze in de status pill.
+  </details>
+
+  **Toegevoegde code — Server genereert room code (index.js):**
+  ```js
+  const CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const generateRoomCode = () => {
+      let code = '';
+      for (let i = 0; i < 4; i++) {
+          code += CHARS[Math.floor(Math.random() * CHARS.length)];
+      }
+      return code;
+  };
+
+  socket.on('connect', () => {
+      const code = generateRoomCode();
+      socket.emit('room-code', code);
+  });
+  ```
+
+  **Desktop ontvangt en toont de code (desktop.js):**
+  ```js
+  socket.on('room-code', (code) => {
+      roomCode = code;
+      const $roomCode = document.getElementById('roomCode');
+      if ($roomCode) $roomCode.textContent = `Room: ${code}`;
+      const $gameRoomCode = document.getElementById('gameRoomCode');
+      if ($gameRoomCode) $gameRoomCode.textContent = `Room: ${code}`;
+  });
+  ```
+
+---
+
+- **Spraakcommando "Stop" → vijanden bevriezen (4s) + cooldown (10s)**  
+  De kernfeature van MVP 4: de speler kan via spraakherkenning op de controller het woord **"Stop"** zeggen om de vijanden 4 seconden te bevriezen. De **Web Speech API** (`SpeechRecognition`) luistert continu via de microfoon van de smartphone en detecteert het commando.
+
+  <details>
+  <summary>🤖 AI Prompt — Blazen detecteren voor freeze ability</summary>
+
+  > **Mijn prompt:**  
+  > *"I would like to use the controller's microphone as a gameplay ability. When the player blows into the microphone, the two red enemy balls should freeze for 2 seconds. After that, they should move normally again. This ability should also be clearly visible on the controller UI. After using the blow ability, there should be a cooldown of 10 seconds."*
+
+  **Copilot antwoordde:**  
+  Copilot implementeerde een blaas-detectie via `getUserMedia` + Web Audio API (`AnalyserNode`). Maar dit detecteerde elk geluid (praten, achtergrondlawaai), niet specifiek blazen.
+
+  > **Mijn vervolgprompt:**  
+  > *"Maar omdat het alles detecteerde van geluid en niet enkel geluid dacht ik er aan om het woordje 'freeze' te gaan gebruiken. Let's make it easier. Instead of blowing, let the user say freeze."*
+
+  **Copilot antwoordde:**  
+  Copilot verving de hele blow-detectie door de **Web Speech API** (`SpeechRecognition`). De herkenning luistert continu (`continuous: true`, `interimResults: true`) en checkt bij elk resultaat of het transcript het woord "freeze" bevat (inclusief veelvoorkomende fouten: "fries", "trees").
+
+  Later heb ik "freeze" veranderd naar **"stop"** en de taal van `en-US` naar `nl-NL` gezet:
+
+  > **Mijn vervolgprompt:**  
+  > *"Door middel van freeze te gaan zeggen kan je de balletjes doen bevriezen. Is het mogelijk om dit te doen met het woordje 'stop'?"*
+  </details>
+
+  **Toegevoegde code — Spraakherkenning (controller.js):**
+  ```js
+  // ── Freeze ability: voice command detection ──
+  const FREEZE_COOLDOWN = 10000;  // 10s cooldown
+  const FREEZE_ACTIVE = 4000;     // 4s freeze
+
+  let freezeState = 'idle'; // idle | ready | active | cooldown
+  let recognition = null;
+
+  const initFreezeAbility = async () => {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+          $blowLabel.textContent = 'Spraak niet ondersteund';
+          return;
+      }
+
+      if (!recognition) {
+          recognition = new SpeechRecognition();
+          recognition.continuous = true;
+          recognition.interimResults = true;
+          recognition.lang = 'nl-NL';
+
+          recognition.onresult = (event) => {
+              for (let i = event.resultIndex; i < event.results.length; i++) {
+                  const transcript = event.results[i][0].transcript.toLowerCase().trim();
+                  if (transcript.includes('stop') || transcript.includes('stap') || transcript.includes('top')) {
+                      triggerFreeze();
+                      break;
+                  }
+              }
+          };
+
+          recognition.onend = () => {
+              if (freezeState === 'ready') {
+                  startRecognition();
+              }
+          };
+      }
+
+      setFreezeState('ready');
+      startRecognition();
+  };
+  ```
+
+  **Desktop ontvangt freeze-commando (desktop.js):**
+  ```js
+  // ── Blow ability: freeze enemies ──
+  const FREEZE_DURATION = 4000;
+
+  const freezeEnemies = () => {
+      if (enemiesFrozen || gameOver || gamePaused) return;
+      enemiesFrozen = true;
+      for (const enemy of enemies) enemy.el.classList.add('frozen');
+      freezeTimeout = setTimeout(() => {
+          enemiesFrozen = false;
+          for (const enemy of enemies) enemy.el.classList.remove('frozen');
+          freezeTimeout = null;
+      }, FREEZE_DURATION);
+  };
+  ```
+
+  **Controller UI state machine (controller.js):**
+  ```js
+  const setFreezeState = (state) => {
+      freezeState = state;
+      $blowAbility.classList.remove('ready', 'active', 'cooldown');
+
+      if (state === 'ready') {
+          $blowAbility.classList.add('ready');
+          $blowLabel.textContent = 'Zeg "Stop"';
+      } else if (state === 'active') {
+          $blowAbility.classList.add('active');
+          $blowLabel.textContent = 'Bevroren! ❄️';
+      } else if (state === 'cooldown') {
+          $blowAbility.classList.add('cooldown');
+          freezeCooldownStart = performance.now();
+          animateCooldownRing();
+      }
+  };
+  ```
+
+---
+
+- **Pause/Resume flow (controller + desktop)**  
+  De controller heeft een pauzeknop gekregen. Bij het pauzeren stoppen de vijanden, stopt de achtergrondmuziek, en verschijnt er een pause-overlay op zowel desktop als controller. Hervatten gaat via de controller.
+
+  **Toegevoegde code — Pause/Resume (desktop.js):**
+  ```js
+  const pauseGame = () => {
+      if (gameOver || gamePaused) return;
+      gamePaused = true;
+      if (enemyAnimId) { cancelAnimationFrame(enemyAnimId); enemyAnimId = null; }
+      bgMusic.pause();
+      if ($pauseOverlay) $pauseOverlay.classList.add('active');
+      sendToController({ type: 'paused' });
+  };
+
+  const resumeGame = () => {
+      if (!gamePaused) return;
+      gamePaused = false;
+      if ($pauseOverlay) $pauseOverlay.classList.remove('active');
+      startEnemyLoop();
+      if (soundEnabled) bgMusic.play().catch(() => { });
+      sendToController({ type: 'resumed' });
+  };
+  ```
+
+---
+
+- **Orb counter sync naar controller**  
+  De controller toont nu live hoeveel orbs je hebt verzameld ("Orbs: 3 / 8"). Bij elke pickup stuurt de desktop een `orbs-updated` bericht via het datachannel.
+
+  **Toegevoegde code (desktop.js):**
+  ```js
+  sendToController({ type: 'orbs-updated', count: orbsCollected, total: ORB_COUNT });
+  ```
+
+  **Controller ontvangt (controller.js):**
+  ```js
+  } else if (message.type === 'orbs-updated') {
+      const $orbCounter = document.getElementById('controlOrbCounter');
+      if ($orbCounter) {
+          $orbCounter.textContent = `Orbs: ${message.count} / ${message.total}`;
+      }
+  }
+  ```
+
+---
+
+- **Microfoonfix na game restart (bug fix)**  
+  Na het winnen, verliezen of herstarten van het spel luisterde de microfoon niet meer. De oorzaak: `stopFreezeMonitoring()` stopte de spraakherkenning maar liet `freezeState` op `'ready'` staan, waardoor de `recognition.onend` handler de herkenning automatisch herstartte in de achtergrond. Na meerdere stop/start cycli raakte de browser's `SpeechRecognition` in een slechte staat.
+
+  <details>
+  <summary>🤖 AI Prompt — Microfoon werkt niet meer na restart</summary>
+
+  > **Mijn prompt:**  
+  > *"Als je verloren bent, gewonnen, of ja als het spel opnieuw start dan luistert de microfoon niet meer, kan dit?"*
+
+  **Copilot antwoordde:**  
+  Het probleem was dat `stopFreezeMonitoring()` alleen `stopRecognition()` aanriep maar `freezeState` niet resette. Hierdoor vuurde `recognition.onend` en herstartte de herkenning automatisch — in een potentieel gebroken staat.
+
+  **De fix:** `freezeState` wordt nu op `'idle'` gezet in `stopFreezeMonitoring()`, zodat `onend` de recognition niet meer automatisch herstart.
+  </details>
+
+  **Aangepaste code (controller.js):**
+  ```js
+  const stopFreezeMonitoring = () => {
+      stopRecognition();
+      freezeState = 'idle';  // ← voorkomt ghost auto-restart via onend
+  };
+  ```
 
 ---
 
@@ -1417,3 +1841,49 @@ Deze week verschoof mijn gebruik van AI van "hulp bij concepten" naar "technisch
 #### Conclusie
 
 Deze week leerde ik dat AI-generated code vaak de "optimale" weg kiest voor een geïsoleerd probleem, maar dat ik als ontwikkelaar verantwoordelijk ben voor de integratie. Het omzetten van 350 divs naar één canvas was een technisch advies van de AI, maar de creatieve invulling (de neon-glow en de flow van de game) was mijn eigen regiewerk. 
+
+---
+
+### Week 4 — Waarvoor heb ik AI gebruikt?
+
+Tijdens de ontwikkeling van MVP 4 heb ik Copilot intensief gebruikt voor het implementeren van cross-device features en een spraakgestuurde gameplay ability.
+
+- **Cross-device UI synchronisatie:**  
+  Copilot heeft mij geholpen om victory, game-over en pause schermen op de controller te tonen via het datachannel. Ik gaf aan wat ik wilde zien op welk apparaat, en Copilot implementeerde de berichtstructuur en de bijbehorende UI.
+
+- **Spraakherkenning (Web Speech API):**  
+  Het oorspronkelijke plan was "blazen detecteren" via Web Audio API. Dit werkte niet betrouwbaar (elk geluid triggerde de ability). Ik heb zelf het idee bedacht om over te schakelen naar spraakherkenning met het woord "freeze" (later veranderd naar "stop"). Copilot implementeerde de `SpeechRecognition` API met continue luistermodus en automatische herstart.
+
+- **Haptiek-onderzoek:**  
+  Gemini hielp me onderzoeken of haptische feedback mogelijk was via WebRTC. Het bleek dat iOS de `navigator.vibrate()` API niet ondersteunt. Ik heb uiteindelijk gekozen voor een geluidstoggle op de controller als alternatieve feedback-methode.
+
+- **Bug debugging:**  
+  Copilot hielp me met het debuggen van de microfoon die niet meer werkte na een game restart. De bug zat in de `freezeState` die niet gereset werd bij `stopFreezeMonitoring()`, waardoor de `recognition.onend` handler de herkenning automatisch herstartte in een gebroken staat.
+
+---
+
+### Week 4 — Kritische Reflectie
+
+#### 1. Van Blazen naar Spraak: Eigen Creatieve Oplossing
+
+- **Wat de AI deed:** Copilot implementeerde initieel een blaas-detectie via `getUserMedia` + Web Audio API, met een `AnalyserNode` die het volume monitorde.
+- **Mijn bijsturing:** Dit detecteerde *elk* geluid, niet specifiek blazen. Ik heb zelf het idee bedacht om over te schakelen naar **spraakherkenning** met een specifiek woord. Dit was een fundamentele richtsverandering die ik vanuit eigen inzicht heb gemaakt — de AI had dit niet voorgesteld. Later heb ik het woord veranderd van "freeze" (Engels) naar **"stop"** (Nederlands) en de taalinstelling aangepast van `en-US` naar `nl-NL` om beter aan te sluiten bij de Nederlandse interface.
+
+#### 2. Cross-Device Architectuur
+
+- **Wat de AI deed:** Copilot implementeerde de datachannel-berichten voor victory/game-over/pause synchronisatie.
+- **Mijn bijsturing:** De AI plaatste "Opnieuw spelen" knoppen op zowel desktop als controller. Ik heb bewust besloten dat alleen de controller het spel mag herstarten — de desktop is een "display only" scherm. Dit is een UX-keuze die de AI niet zelf maakte.
+
+#### 3. iOS Beperkingen Leren Accepteren
+
+- **Wat de AI deed:** Gemini onderzocht haptische feedback via `navigator.vibrate()`.
+- **Mijn bijsturing:** Na het ontdekken dat iOS dit niet ondersteunt, moest ik een alternatief bedenken. In plaats van "visual haptics" (schermflits) heb ik gekozen voor een **geluidstoggle op de controller** — een meer praktische feature die op alle apparaten werkt. Dit leerde me dat je soms een heel ander pad moet kiezen dan je oorspronkelijk plande.
+
+#### 4. State Machine Debugging
+
+- **Wat de AI deed:** Copilot identificeerde de bug in `stopFreezeMonitoring()` waarbij `freezeState` niet gereset werd.
+- **Mijn bijsturing:** Dit probleem had ik zelf ontdekt tijdens het testen — ik merkte dat de microfoon na een game restart niet meer reageerde. Het was een subtiele state machine bug die alleen optrad na meerdere stop/start cycli. Dit benadrukt het belang van uitgebreid testen over de gehele game-flow, niet alleen de "happy path".
+
+#### Conclusie
+
+Deze week was het meest uitdagende onderdeel niet de code zelf, maar de **integratie tussen twee apparaten**. Elk feature (spraak, pause, geluid, orb counter) vereist coördinatie via het datachannel, met correcte state management aan beide kanten. De AI hielp enorm met de boilerplate, maar de architectuurbeslissingen (wie mag wat doen, welk apparaat heeft de controle) waren volledig mijn eigen keuzes.
