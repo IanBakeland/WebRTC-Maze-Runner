@@ -1,19 +1,12 @@
 import { createParticles } from './particles.js';
+import { createConnection, sendMessage, closeConnection, reconnect } from './connection.js';
 
-// ── Gedeelde state en DOM-referenties voor de controller ──
-let socket, peerConnection, dataChannel, targetSocketId;
-
+// ── DOM-referenties ──
 const $status = document.getElementById('status');
 const $statusDot = document.getElementById('statusDot');
 const $statusText = document.getElementById('statusText');
 
 createParticles(15);
-
-const servers = {
-    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-};
-
-
 
 const getUrlParameter = name => new URLSearchParams(location.search).get(name) || false;
 
@@ -34,7 +27,6 @@ const requestOrientationPermission = () => {
                 .then(response => resolve(response === 'granted'))
                 .catch(() => resolve(false));
         } else {
-            // Android / desktop — no permission needed
             resolve(true);
         }
     });
@@ -45,29 +37,24 @@ const startOrientation = () => {
     orientationActive = true;
 
     let lastSendTime = 0;
-    const SEND_INTERVAL = 33; // ~30fps max over datachannel
+    const SEND_INTERVAL = 33;
 
     orientationHandler = (e) => {
-        const beta = e.beta;   // front/back tilt -180..180
-        const gamma = e.gamma; // left/right tilt -90..90
+        const beta = e.beta;
+        const gamma = e.gamma;
         if (beta === null || gamma === null) return;
 
-        // Visualize on tilt dot
         if ($tiltDot) {
             const dx = Math.max(-1, Math.min(1, gamma / 45)) * 50;
             const dy = Math.max(-1, Math.min(1, (beta - 30) / 45)) * 50;
             $tiltDot.style.transform = `translate(${dx}px, ${dy}px)`;
         }
 
-        // Throttle data channel sends
         const now = performance.now();
         if (now - lastSendTime < SEND_INTERVAL) return;
         lastSendTime = now;
 
-        // Send via data channel
-        if (dataChannel && dataChannel.readyState === 'open') {
-            dataChannel.send(JSON.stringify({ type: 'tilt', beta, gamma }));
-        }
+        sendMessage({ type: 'tilt', beta, gamma });
     };
 
     window.addEventListener('deviceorientation', orientationHandler);
@@ -81,7 +68,7 @@ const stopOrientation = () => {
     orientationActive = false;
 };
 
-// ── Permissie-flow en countdown voor de controller ──
+// ── Permissie-flow en countdown ──
 const needsPermission = typeof DeviceOrientationEvent.requestPermission === 'function';
 let permissionGranted = false;
 
@@ -101,15 +88,12 @@ document.getElementById('permBtn').addEventListener('click', async () => {
 });
 
 const startCountdown = () => {
-    // Tell desktop to start its countdown now
-    if (dataChannel && dataChannel.readyState === 'open') {
-        dataChannel.send(JSON.stringify({ type: 'countdown-ready' }));
-    }
+    sendMessage({ type: 'countdown-ready' });
 
     showScreen('countdownScreen');
     const numEl = document.getElementById('countdownNumber');
     const circle = document.getElementById('countdownCircle');
-    const circumference = 2 * Math.PI * 89; // ~559
+    const circumference = 2 * Math.PI * 89;
 
     let count = 3;
     numEl.textContent = count;
@@ -134,7 +118,6 @@ const startCountdown = () => {
             setTimeout(() => {
                 showScreen('controlsScreen');
                 startOrientation();
-                // Speech recognition already initialized, just restart
                 setFreezeState('ready');
                 startRecognition();
             }, 800);
@@ -144,11 +127,11 @@ const startCountdown = () => {
 };
 
 // ── Freeze ability: voice command detection ──
-const FREEZE_COOLDOWN = 10000;  // 10s cooldown
-const FREEZE_ACTIVE = 4000;     // 4s freeze
-const RING_CIRCUMFERENCE = 2 * Math.PI * 36; // ~226.2
+const FREEZE_COOLDOWN = 10000;
+const FREEZE_ACTIVE = 4000;
+const RING_CIRCUMFERENCE = 2 * Math.PI * 36;
 
-let freezeState = 'idle'; // idle | ready | active | cooldown
+let freezeState = 'idle';
 let freezeCooldownStart = 0;
 let recognition = null;
 
@@ -194,9 +177,7 @@ const animateCooldownRing = () => {
 
 const triggerFreeze = () => {
     if (freezeState !== 'ready') return;
-    if (dataChannel && dataChannel.readyState === 'open') {
-        dataChannel.send(JSON.stringify({ type: 'blow' }));
-    }
+    sendMessage({ type: 'blow' });
     setFreezeState('active');
     setTimeout(() => {
         setFreezeState('cooldown');
@@ -205,20 +186,12 @@ const triggerFreeze = () => {
 
 const startRecognition = () => {
     if (!recognition) return;
-    try {
-        recognition.start();
-    } catch (e) {
-        // Already started — ignore
-    }
+    try { recognition.start(); } catch (e) { /* Already started */ }
 };
 
 const stopRecognition = () => {
     if (!recognition) return;
-    try {
-        recognition.stop();
-    } catch (e) {
-        // Not started — ignore
-    }
+    try { recognition.stop(); } catch (e) { /* Not started */ }
 };
 
 const initFreezeAbility = async () => {
@@ -245,10 +218,7 @@ const initFreezeAbility = async () => {
         };
 
         recognition.onend = () => {
-            // Auto-restart if ability is ready
-            if (freezeState === 'ready') {
-                startRecognition();
-            }
+            if (freezeState === 'ready') startRecognition();
         };
 
         recognition.onerror = (e) => {
@@ -257,10 +227,7 @@ const initFreezeAbility = async () => {
                 $blowLabel.textContent = 'Microfoon geweigerd';
                 return;
             }
-            // Restart on transient errors
-            if (freezeState === 'ready') {
-                setTimeout(startRecognition, 500);
-            }
+            if (freezeState === 'ready') setTimeout(startRecognition, 500);
         };
     }
 
@@ -281,7 +248,9 @@ const resetFreezeAbility = () => {
     $blowRingFill.style.strokeDashoffset = '0';
 };
 
-// ── WebRTC verbinding, signalling en init voor de controller ──
+// ── Disconnect-afhandeling ──
+const targetSocketId = getUrlParameter('id');
+
 const handleDisconnect = () => {
     console.log('Desktop disconnected!');
     showScreen('disconnectScreen');
@@ -297,128 +266,80 @@ const handleDisconnect = () => {
             timerEl.textContent = `Terug in ${sec}s…`;
         } else {
             clearInterval(iv);
-            // Reset and go back to connect screen
             showScreen('connectScreen');
             $status.textContent = 'Opnieuw verbinden…';
             $statusText.textContent = 'Verbinden…';
-            if (peerConnection) {
-                peerConnection.close();
-                peerConnection = null;
-            }
-            dataChannel = null;
             stopOrientation();
-            // Re-attempt connection
-            callPeer(targetSocketId);
+            reconnect(targetSocketId);
         }
     }, 1000);
 };
 
-const callPeer = async (peerId) => {
-    if (peerConnection) peerConnection.close();
-    peerConnection = new RTCPeerConnection(servers);
-
-    dataChannel = peerConnection.createDataChannel('control');
-    dataChannel.onopen = () => {
-        console.log('Data channel open!');
-        $statusText.textContent = 'Verbonden';
-        $statusDot.classList.add('connected');
-    };
-
-    dataChannel.onclose = () => {
-        console.log('Data channel closed');
-        handleDisconnect();
-    };
-
-    dataChannel.onmessage = (event) => {
-        const message = JSON.parse(event.data);
-        if (message.type === 'countdown-start') {
-            onConnected();
-        } else if (message.type === 'victory') {
-            stopOrientation();
-            stopFreezeMonitoring();
-            showScreen('victoryScreen');
-        } else if (message.type === 'game-over') {
-            stopOrientation();
-            stopFreezeMonitoring();
-            showScreen('gameOverScreen');
-        } else if (message.type === 'paused') {
-            stopOrientation();
-            stopFreezeMonitoring();
-            showScreen('pausedScreen');
-        } else if (message.type === 'resumed') {
-            showScreen('controlsScreen');
-            startOrientation();
-            initFreezeAbility();
-        } else if (message.type === 'game-restart') {
-            resetFreezeAbility();
-            handlePlayAgain();
-        } else if (message.type === 'room-code') {
-            const $label = document.getElementById('roomCodeLabel');
-            if ($label) $label.textContent = `Room: ${message.code}`;
-        } else if (message.type === 'sound-state') {
-            const $ctrlSoundBtn = document.getElementById('ctrlSoundBtn');
-            if ($ctrlSoundBtn) $ctrlSoundBtn.classList.toggle('muted', !message.enabled);
-        } else if (message.type === 'orbs-updated') {
-            const $orbCounter = document.getElementById('controlOrbCounter');
-            if ($orbCounter) {
-                $orbCounter.textContent = `Orbs: ${message.count} / ${message.total}`;
-            }
+// ── DataChannel bericht-handler ──
+const handleMessage = (message) => {
+    if (message.type === 'countdown-start') {
+        onConnected();
+    } else if (message.type === 'victory') {
+        stopOrientation();
+        stopFreezeMonitoring();
+        showScreen('victoryScreen');
+    } else if (message.type === 'game-over') {
+        stopOrientation();
+        stopFreezeMonitoring();
+        showScreen('gameOverScreen');
+    } else if (message.type === 'paused') {
+        stopOrientation();
+        stopFreezeMonitoring();
+        showScreen('pausedScreen');
+    } else if (message.type === 'resumed') {
+        showScreen('controlsScreen');
+        startOrientation();
+        initFreezeAbility();
+    } else if (message.type === 'game-restart') {
+        resetFreezeAbility();
+        handlePlayAgain();
+    } else if (message.type === 'room-code') {
+        const $label = document.getElementById('roomCodeLabel');
+        if ($label) $label.textContent = `Room: ${message.code}`;
+    } else if (message.type === 'sound-state') {
+        const $ctrlSoundBtn = document.getElementById('ctrlSoundBtn');
+        if ($ctrlSoundBtn) $ctrlSoundBtn.classList.toggle('muted', !message.enabled);
+    } else if (message.type === 'orbs-updated') {
+        const $orbCounter = document.getElementById('controlOrbCounter');
+        if ($orbCounter) {
+            $orbCounter.textContent = `Orbs: ${message.count} / ${message.total}`;
         }
-    };
-
-    peerConnection.onicecandidate = (e) => {
-        socket.emit('peerIce', peerId, e.candidate);
-    };
-
-    peerConnection.onconnectionstatechange = () => {
-        const state = peerConnection.connectionState;
-        console.log('Connection state:', state);
-        if (state === 'disconnected' || state === 'failed' || state === 'closed') {
-            handleDisconnect();
-        }
-    };
-
-    const offer = await peerConnection.createOffer();
-    await peerConnection.setLocalDescription(offer);
-    socket.emit('peerOffer', peerId, offer);
-};
-
-const sendCursorData = (x, y) => {
-    if (!dataChannel || dataChannel.readyState !== 'open') return;
-    dataChannel.send(JSON.stringify({ type: 'cursor', x, y }));
-};
-
-const handlePlayAgain = () => {
-    if (dataChannel && dataChannel.readyState === 'open') {
-        dataChannel.send(JSON.stringify({ type: 'play-again' }));
     }
+};
+
+// ── Cursor data ──
+const sendCursorData = (x, y) => {
+    sendMessage({ type: 'cursor', x, y });
+};
+
+// ── Play again ──
+const handlePlayAgain = () => {
+    sendMessage({ type: 'play-again' });
     startCountdown();
 };
 
 document.getElementById('ctrlPlayAgainBtn').addEventListener('click', handlePlayAgain);
 document.getElementById('ctrlRetryBtn').addEventListener('click', handlePlayAgain);
 
-
-// ── Sound toggle from controller ──
+// ── Sound toggle ──
 document.getElementById('ctrlSoundBtn').addEventListener('click', () => {
-    if (dataChannel && dataChannel.readyState === 'open') {
-        dataChannel.send(JSON.stringify({ type: 'toggle-sound' }));
-    }
+    sendMessage({ type: 'toggle-sound' });
 });
 
-// ── Pause / Resume handlers for controller ──
+// ── Pause / Resume ──
 document.getElementById('ctrlPauseBtn').addEventListener('click', () => {
-    if (dataChannel && dataChannel.readyState === 'open') {
-        dataChannel.send(JSON.stringify({ type: 'pause' }));
-    }
+    sendMessage({ type: 'pause' });
     stopOrientation();
     showScreen('pausedScreen');
 });
 
 document.getElementById('ctrlResumeBtn').addEventListener('click', () => {
-    if (dataChannel && dataChannel.readyState === 'open') {
-        dataChannel.send(JSON.stringify({ type: 'resume' }));
-    }
+    sendMessage({ type: 'resume' });
     showScreen('controlsScreen');
     startOrientation();
     resetRestartConfirm();
@@ -447,31 +368,25 @@ $ctrlPauseRestartBtn.addEventListener('click', () => {
     handlePlayAgain();
 });
 
+// ── Init: verbinding opzetten via de communicatie-laag ──
 const init = () => {
-    targetSocketId = getUrlParameter('id');
     if (!targetSocketId) {
         $status.textContent = 'Geen desktop-ID gevonden';
         return;
     }
 
-    socket = io.connect('/');
-
-    socket.on('connect', () => {
-        console.log(`Connected: ${socket.id}`);
-        $status.textContent = 'Verbinden met desktop…';
-        $statusText.textContent = 'Signalling…';
-        callPeer(targetSocketId);
-    });
-
-    socket.on('peerAnswer', async (myId, answer, peerId) => {
-        console.log(`Received peerAnswer from ${peerId}`);
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-    });
-
-    socket.on('peerIce', async (myId, candidate, peerId) => {
-        if (!candidate) return;
-        console.log(`Received peerIce from ${peerId}`);
-        await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+    createConnection('controller', {
+        targetId: targetSocketId,
+        onOpen: () => {
+            $statusText.textContent = 'Verbonden';
+            $statusDot.classList.add('connected');
+        },
+        onClose: handleDisconnect,
+        onMessage: handleMessage,
+        onSocketConnect: () => {
+            $status.textContent = 'Verbinden met desktop…';
+            $statusText.textContent = 'Signalling…';
+        }
     });
 
     window.addEventListener('mousemove', e => {
