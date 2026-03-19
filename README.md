@@ -87,6 +87,7 @@ Je smartphone is de controller. Kantel je telefoon naar links → het balletje r
 | Orb counter sync naar controller                             | 0,25u | 17 maart | ✅ Klaar |
 | Microfoonfix na game restart                                 | 0,25u | 17 maart | ✅ Klaar |
 | README, AI reflectie en documentatie afronden                | 0,75u | 18 maart | ✅ Klaar |
+| Communicatie-laag extraheren naar apart bestand               | 0,5u  | 19 maart | ✅ Klaar |
 
 **Oplevering:** Bonuspunten — spraakcommando integratie, cross-device UI synchronisatie, en gepolijste eindversie.
 
@@ -1713,6 +1714,153 @@ Deze week heb ik het spel afgewerkt met een spraakgestuurde ability, cross-devic
 
 ---
 
+- **Communicatie-laag extraheren naar `connection.js`**  
+  Als feedback kreeg ik dat mijn JS-bestanden te lang waren en dat de "communicatie-laag" apart moest staan. De communicatie-laag is alle code die zorgt voor de **verbinding** tussen desktop en controller: Socket.io signalling, WebRTC peer connection setup, DataChannel beheer, en disconnect/reconnect logica. Deze code zat door de hele file gemengd met game-logica en UI-code.
+
+  <details>
+  <summary>🤖 AI Prompt — Welke stukken zijn de communicatie-laag?</summary>
+
+  > **Mijn prompt:**  
+  > *"Als feedback heb ik gekregen dat mijn JS files redelijk lang zijn. En hij zou graag de communicatie-laag apart gaan zien. Wat is dit precies en zou je dit kunnen gaan toepassen?"*
+
+  **Copilot antwoordde:**  
+  De communicatie-laag is alle code die zorgt voor de verbinding tussen desktop en controller:
+
+  | Onderdeel | Wat het doet |
+  |---|---|
+  | **Socket.io** | Verbinding met de signalling-server (`io.connect`, `socket.on('peerOffer')`, etc.) |
+  | **WebRTC setup** | `RTCPeerConnection` aanmaken, ICE candidates uitwisselen, offer/answer flow |
+  | **DataChannel beheer** | `createDataChannel`, `onopen`, `onclose`, `onmessage` dispatching |
+  | **Disconnect-handling** | Detecteren van verbroken verbinding, reconnect-logica |
+
+  Deze code zat door de hele file gemengd met game-logica (maze, enemies, orbs) en UI-code (screens tonen, countdown, freeze-ability). Door dit te scheiden wordt elke file kleiner en duidelijker.
+  </details>
+
+  <details>
+  <summary>🤖 AI Prompt — Kan ik dit verplaatsen naar een apart bestand?</summary>
+
+  > **Mijn vervolgprompt:**  
+  > *"Kan ik dit gemakkelijk verplaatsen naar een nieuw bestand, bijvoorbeeld connection.js?"*
+
+  **Copilot antwoordde:**  
+  Ja, een gedeelde module die de volledige WebRTC + Socket.io verbinding beheert. Copilot stelde de volgende API voor:
+
+  - `createConnection(role, options)` — factory die een connectie opzet
+    - `role`: `'desktop'` of `'controller'`
+    - `options.targetId`: (controller) het socket-ID van de desktop
+    - `options.onMessage(msg)`: callback voor inkomende DataChannel berichten
+    - `options.onOpen()`: callback wanneer DataChannel open is
+    - `options.onClose()`: callback wanneer verbinding verbreekt
+    - `options.onSocketConnect(socketId)`: callback na Socket.io connect
+    - `options.onRoomCode(code)`: (desktop) callback voor room-code
+  - `sendMessage(msg)` — stuurt een JSON-bericht over de DataChannel
+  - `getSocket()` — geeft het socket-object terug (voor QR-code URL)
+  - `closeConnection()` — sluit de peer connection
+  - `reconnect(targetId)` — herverbindt (voor controller reconnect-flow)
+  </details>
+
+  **Resultaat:**
+
+  | Bestand | Vóór | Na | Verschil |
+  |---|---|---|---|
+  | `controller.js` | 491 regels | 369 regels | **-122 regels** |
+  | `desktop.js` | 774 regels | 665 regels | **-109 regels** |
+  | `connection.js` | — | 153 regels | **nieuw** |
+
+  **Nieuw bestand — `connection.js`:**
+  ```js
+  // ── Communicatie-laag: WebRTC + Socket.io verbinding ──
+  // Gedeelde module voor zowel desktop als controller.
+
+  const ICE_SERVERS = {
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+  };
+
+  let socket = null;
+  let peerConnection = null;
+  let dataChannel = null;
+  let callbacks = {};
+
+  export const createConnection = (role, options = {}) => {
+      callbacks = options;
+      socket = io.connect('/');
+
+      socket.on('connect', () => {
+          if (callbacks.onSocketConnect) callbacks.onSocketConnect(socket.id);
+          if (role === 'controller' && options.targetId) {
+              _createOffer(options.targetId);
+          }
+      });
+
+      socket.on('peerOffer', async (myId, offer, peerId) => {
+          if (role === 'desktop') await _answerOffer(offer, peerId);
+      });
+
+      socket.on('peerAnswer', async (myId, answer, peerId) => {
+          if (peerConnection) {
+              await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+          }
+      });
+
+      socket.on('peerIce', async (myId, candidate, peerId) => {
+          if (!candidate || !peerConnection) return;
+          await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+      });
+  };
+
+  export const sendMessage = (msg) => {
+      if (dataChannel && dataChannel.readyState === 'open') {
+          dataChannel.send(JSON.stringify(msg));
+      }
+  };
+
+  export const getSocket = () => socket;
+  export const closeConnection = () => { /* ... */ };
+  export const reconnect = (targetId) => { /* ... */ };
+  ```
+
+  **Aangepaste imports — `controller.js`:**
+  ```js
+  import { createConnection, sendMessage, closeConnection, reconnect } from './connection.js';
+
+  // Alle dataChannel.send() calls vervangen door:
+  sendMessage({ type: 'tilt', beta, gamma });
+  sendMessage({ type: 'countdown-ready' });
+  sendMessage({ type: 'blow' });
+  // etc.
+
+  // Init gebruikt nu createConnection:
+  createConnection('controller', {
+      targetId: targetSocketId,
+      onOpen: () => { /* status UI update */ },
+      onClose: handleDisconnect,
+      onMessage: handleMessage,
+      onSocketConnect: () => { /* signalling status */ }
+  });
+  ```
+
+  **Aangepaste imports — `desktop.js`:**
+  ```js
+  import { createConnection, sendMessage, getSocket, closeConnection } from './connection.js';
+
+  // sendToController() vervangen door sendMessage():
+  sendMessage({ type: 'victory' });
+  sendMessage({ type: 'game-over' });
+  sendMessage({ type: 'paused' });
+  // etc.
+
+  // Init gebruikt nu createConnection:
+  createConnection('desktop', {
+      onOpen: () => { /* stuur countdown-start, sound-state, room-code */ },
+      onClose: handleDisconnect,
+      onMessage: handleMessage,
+      onSocketConnect: (socketId) => { /* QR-code generatie */ },
+      onRoomCode: (code) => { /* room code UI update */ }
+  });
+  ```
+
+---
+
 ## 🤖 AI Reflectie
 
 In dit project maak ik gebruik van AI (Copilot en Gemini) als mijn persoonlijke assistent en tutor. Hieronder lees je hoe ik AI precies inzet, per week.
@@ -1860,6 +2008,9 @@ Tijdens de ontwikkeling van MVP 4 heb ik Copilot intensief gebruikt voor het imp
 - **Bug debugging:**  
   Copilot hielp me met het debuggen van de microfoon die niet meer werkte na een game restart. De bug zat in de `freezeState` die niet gereset werd bij `stopFreezeMonitoring()`, waardoor de `recognition.onend` handler de herkenning automatisch herstartte in een gebroken staat.
 
+- **Communicatie-laag extraheren:**  
+  Copilot heeft mij uitgelegd wat de "communicatie-laag" precies is (Socket.io signalling, WebRTC setup, DataChannel beheer, disconnect-handling) en heeft deze code verplaatst naar een apart `connection.js` bestand. Hierdoor werden `controller.js` (-122 regels) en `desktop.js` (-109 regels) aanzienlijk korter en overzichtelijker.
+
 ---
 
 ### Week 4 — Kritische Reflectie
@@ -1884,6 +2035,11 @@ Tijdens de ontwikkeling van MVP 4 heb ik Copilot intensief gebruikt voor het imp
 - **Wat de AI deed:** Copilot identificeerde de bug in `stopFreezeMonitoring()` waarbij `freezeState` niet gereset werd.
 - **Mijn bijsturing:** Dit probleem had ik zelf ontdekt tijdens het testen — ik merkte dat de microfoon na een game restart niet meer reageerde. Het was een subtiele state machine bug die alleen optrad na meerdere stop/start cycli. Dit benadrukt het belang van uitgebreid testen over de gehele game-flow, niet alleen de "happy path".
 
+#### 5. Communicatie-laag Extraheren: Code-architectuur Verbeteren
+
+- **Wat de AI deed:** Copilot legde uit welke code de "communicatie-laag" vormt en verplaatste alle WebRTC + Socket.io logica naar een nieuw `connection.js` bestand met een schone API (`createConnection`, `sendMessage`, `closeConnection`, `reconnect`).
+- **Mijn bijsturing:** De feedback om de communicatie-laag apart te zetten kwam van mijn docent. Ik heb bewust aan de AI gevraagd om eerst uit te leggen *wat* de communicatie-laag precies is voordat ik het liet verplaatsen, zodat ik begreep welke code waar hoort. Het resultaat is dat `controller.js` en `desktop.js` nu alleen nog hun eigen verantwoordelijkheid hebben (game-logica en UI), terwijl de verbindingslogica centraal op één plek staat.
+
 #### Conclusie
 
-Deze week was het meest uitdagende onderdeel niet de code zelf, maar de **integratie tussen twee apparaten**. Elk feature (spraak, pause, geluid, orb counter) vereist coördinatie via het datachannel, met correcte state management aan beide kanten. De AI hielp enorm met de boilerplate, maar de architectuurbeslissingen (wie mag wat doen, welk apparaat heeft de controle) waren volledig mijn eigen keuzes.
+Deze week was het meest uitdagende onderdeel niet de code zelf, maar de **integratie tussen twee apparaten**. Elk feature (spraak, pause, geluid, orb counter) vereist coördinatie via het datachannel, met correcte state management aan beide kanten. De AI hielp enorm met de boilerplate, maar de architectuurbeslissingen (wie mag wat doen, welk apparaat heeft de controle) waren volledig mijn eigen keuzes. De extractie van de communicatie-laag naar een apart bestand toont aan dat ik ook na feedback mijn code kritisch kan herstructureren met hulp van AI.
