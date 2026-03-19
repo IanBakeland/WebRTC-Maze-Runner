@@ -1,6 +1,7 @@
 import { createParticles } from './particles.js';
+import { createConnection, sendMessage, getSocket, closeConnection } from './connection.js';
 
-// ── Gedeelde state en DOM-referenties voor het desktop-scherm ──
+// ── DOM-referenties ──
 const $status = document.getElementById('status');
 const $statusDot = document.getElementById('statusDot');
 const $cursor = document.getElementById('cursor');
@@ -8,14 +9,7 @@ const $controllerLink = document.getElementById('controllerLink');
 
 createParticles(25);
 
-let socket;
-let peerConnection;
-let dataChannel;
 let roomCode = '----';
-
-const servers = {
-    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-};
 
 // ── Bal-physics en tilt-afhandeling ──
 const $gamePlayground = document.getElementById('gamePlayground');
@@ -84,7 +78,7 @@ const setSoundEnabled = (enabled) => {
     } else {
         bgMusic.pause();
     }
-    sendToController({ type: 'sound-state', enabled: soundEnabled });
+    sendMessage({ type: 'sound-state', enabled: soundEnabled });
 };
 
 const generateMaze = () => {
@@ -99,7 +93,6 @@ const generateMaze = () => {
     mazeOffsetX = (w - mazeCols * cellSize) / 2;
     mazeOffsetY = (h - mazeRows * cellSize) / 2;
 
-    // Init grid — all walls present
     mazeGrid = [];
     for (let r = 0; r < mazeRows; r++) {
         mazeGrid[r] = [];
@@ -108,7 +101,6 @@ const generateMaze = () => {
         }
     }
 
-    // Recursive backtracker
     const stack = [{ r: 0, c: 0 }];
     mazeGrid[0][0].visited = true;
 
@@ -135,7 +127,6 @@ const generateMaze = () => {
         }
     }
 
-    // Remove extra walls to create loops (multiple paths)
     const extraOpenings = Math.floor(mazeRows * mazeCols * 0.35);
     for (let i = 0; i < extraOpenings; i++) {
         const r = Math.floor(Math.random() * mazeRows);
@@ -199,15 +190,9 @@ const checkOrbCollision = () => {
 
             orbsCollected++;
             if ($orbCounter) $orbCounter.textContent = `${orbsCollected} / ${ORB_COUNT}`;
-            sendToController({ type: 'orbs-updated', count: orbsCollected, total: ORB_COUNT });
+            sendMessage({ type: 'orbs-updated', count: orbsCollected, total: ORB_COUNT });
             if (orbsCollected >= ORB_COUNT) showVictory();
         }
-    }
-};
-
-const sendToController = (msg) => {
-    if (dataChannel && dataChannel.readyState === 'open') {
-        dataChannel.send(JSON.stringify(msg));
     }
 };
 
@@ -217,7 +202,7 @@ const showVictory = () => {
     if (enemyAnimId) { cancelAnimationFrame(enemyAnimId); enemyAnimId = null; }
     $victoryOverlay.classList.add('active');
     spawnConfetti();
-    sendToController({ type: 'victory' });
+    sendMessage({ type: 'victory' });
 };
 
 const spawnConfetti = () => {
@@ -259,7 +244,7 @@ const pauseGame = () => {
     if (enemyAnimId) { cancelAnimationFrame(enemyAnimId); enemyAnimId = null; }
     bgMusic.pause();
     if ($pauseOverlay) $pauseOverlay.classList.add('active');
-    sendToController({ type: 'paused' });
+    sendMessage({ type: 'paused' });
 };
 
 const resumeGame = () => {
@@ -270,16 +255,11 @@ const resumeGame = () => {
     if (soundEnabled) {
         bgMusic.play().catch(() => { });
     }
-    sendToController({ type: 'resumed' });
+    sendMessage({ type: 'resumed' });
 };
-
-
-
-
 
 // ── Enemies (rode bolletjes) ──
 const spawnEnemies = () => {
-    // Remove old enemy elements
     $gamePlayground.querySelectorAll('.maze-enemy').forEach(el => el.remove());
     enemies = [];
     if (enemyAnimId) { cancelAnimationFrame(enemyAnimId); enemyAnimId = null; }
@@ -288,7 +268,6 @@ const spawnEnemies = () => {
     const centerRow = Math.floor(mazeRows / 2);
     const usedCells = new Set();
     usedCells.add(`${centerRow},${centerCol}`);
-    // Also avoid cells adjacent to center
     for (let dr = -1; dr <= 1; dr++) {
         for (let dc = -1; dc <= 1; dc++) {
             usedCells.add(`${centerRow + dr},${centerCol + dc}`);
@@ -328,7 +307,6 @@ const getOpenNeighbors = (row, col) => {
 };
 
 const moveEnemyTowardPlayer = (enemy) => {
-    // Get current grid cell of enemy and player
     const eCol = Math.floor((enemy.x - mazeOffsetX) / cellSize);
     const eRow = Math.floor((enemy.y - mazeOffsetY) / cellSize);
     const pCol = Math.floor((ballState.x - mazeOffsetX) / cellSize);
@@ -336,11 +314,9 @@ const moveEnemyTowardPlayer = (enemy) => {
     const safeECol = Math.max(0, Math.min(mazeCols - 1, eCol));
     const safeERow = Math.max(0, Math.min(mazeRows - 1, eRow));
 
-    // BFS to find direction toward player
     const target = `${pRow},${pCol}`;
     const start = `${safeERow},${safeECol}`;
     if (start === target) {
-        // Same cell — move directly toward ball
         const dx = ballState.x - enemy.x;
         const dy = ballState.y - enemy.y;
         const dist = Math.sqrt(dx * dx + dy * dy) || 1;
@@ -375,7 +351,6 @@ const moveEnemyTowardPlayer = (enemy) => {
         }
     }
 
-    // Move toward center of next cell
     const targetX = mazeOffsetX + nextC * cellSize + cellSize / 2;
     const targetY = mazeOffsetY + nextR * cellSize + cellSize / 2;
     const dx = targetX - enemy.x;
@@ -453,7 +428,7 @@ const triggerGameOver = () => {
     if (enemyAnimId) { cancelAnimationFrame(enemyAnimId); enemyAnimId = null; }
     bgMusic.pause();
     if ($gameOverOverlay) $gameOverOverlay.classList.add('active');
-    sendToController({ type: 'game-over' });
+    sendMessage({ type: 'game-over' });
 };
 
 const renderMaze = () => {
@@ -490,7 +465,6 @@ const checkMazeCollision = (newX, newY, radius) => {
     let x = newX;
     let y = newY;
 
-    // Clamp to maze outer bounds
     const left = mazeOffsetX + radius;
     const right = mazeOffsetX + mazeCols * cellSize - radius;
     const top = mazeOffsetY + radius;
@@ -498,7 +472,6 @@ const checkMazeCollision = (newX, newY, radius) => {
     x = Math.max(left, Math.min(right, x));
     y = Math.max(top, Math.min(bottom, y));
 
-    // Grid cell the ball center is in
     const col = Math.floor((x - mazeOffsetX) / cellSize);
     const row = Math.floor((y - mazeOffsetY) / cellSize);
     const safeCol = Math.max(0, Math.min(mazeCols - 1, col));
@@ -510,7 +483,6 @@ const checkMazeCollision = (newX, newY, radius) => {
     const cellRight = cellLeft + cellSize;
     const cellBottom = cellTop + cellSize;
 
-    // Push ball away from walls
     if (cell.top && y - radius < cellTop) y = cellTop + radius;
     if (cell.bottom && y + radius > cellBottom) y = cellBottom - radius;
     if (cell.left && x - radius < cellLeft) x = cellLeft + radius;
@@ -522,7 +494,6 @@ const checkMazeCollision = (newX, newY, radius) => {
 const initBall = () => {
     if (!$gamePlayground) return;
     generateMaze();
-    // Place ball in center cell
     const centerCol = Math.floor(mazeCols / 2);
     const centerRow = Math.floor(mazeRows / 2);
     ballState.x = mazeOffsetX + centerCol * cellSize + cellSize / 2;
@@ -542,7 +513,7 @@ const updateBallPosition = () => {
 
 const handleTilt = (() => {
     let lastTiltTime = 0;
-    const TILT_INTERVAL = 16; // ~60fps cap
+    const TILT_INTERVAL = 16;
 
     return (beta, gamma) => {
         const now = performance.now();
@@ -553,17 +524,14 @@ const handleTilt = (() => {
         if (gameOver || gamePaused) return;
         if (!ballInitialized) return;
 
-        // Update debug HUD
         if ($tiltDebug) $tiltDebug.textContent = `Tilt: ${Math.round(beta)}° / ${Math.round(gamma)}°`;
 
-        // Physics: tilt -> acceleration
         const sensitivity = 0.18;
         const friction = 0.89;
         const maxSpeed = 6;
 
-        // gamma controls X (left/right), beta controls Y (forward/back)
         const ax = gamma * sensitivity;
-        const ay = (beta - 30) * sensitivity; // offset: phone held at ~30° = neutral
+        const ay = (beta - 30) * sensitivity;
 
         ballState.vx = Math.max(-maxSpeed, Math.min(maxSpeed, (ballState.vx + ax) * friction));
         ballState.vy = Math.max(-maxSpeed, Math.min(maxSpeed, (ballState.vy + ay) * friction));
@@ -571,7 +539,6 @@ const handleTilt = (() => {
         ballState.x += ballState.vx;
         ballState.y += ballState.vy;
 
-        // Maze wall collision
         const ballRadius = 12;
         const clamped = checkMazeCollision(ballState.x, ballState.y, ballRadius);
         if (clamped.x !== ballState.x) ballState.vx = 0;
@@ -579,7 +546,6 @@ const handleTilt = (() => {
         ballState.x = clamped.x;
         ballState.y = clamped.y;
 
-        // Clamp to playground bounds
         const pad = 12;
         ballState.x = Math.max(pad, Math.min($gamePlayground.clientWidth - pad, ballState.x));
         ballState.y = Math.max(pad, Math.min($gamePlayground.clientHeight - pad, ballState.y));
@@ -590,12 +556,12 @@ const handleTilt = (() => {
     };
 })();
 
-// ── Countdown-overlay voor het desktop-scherm ──
+// ── Countdown-overlay ──
 const startCountdown = () => {
     const overlay = document.getElementById('countdownOverlay');
     const numEl = document.getElementById('countdownNumber');
     const circle = document.getElementById('countdownCircle');
-    const circumference = 2 * Math.PI * 109; // ~685
+    const circumference = 2 * Math.PI * 109;
 
     overlay.classList.add('active');
     let count = 3;
@@ -607,7 +573,7 @@ const startCountdown = () => {
         count--;
         if (count > 0) {
             numEl.style.animation = 'none';
-            void numEl.offsetWidth; // reflow
+            void numEl.offsetWidth;
             numEl.style.animation = 'countPop .5s ease-out';
             numEl.textContent = count;
             circle.style.strokeDashoffset = String(circumference * (1 - count / 3));
@@ -631,7 +597,7 @@ const startCountdown = () => {
     setTimeout(tick, 1000);
 };
 
-// ── WebRTC verbinding, signalling en init voor het desktop-scherm ──
+// ── Disconnect-afhandeling ──
 const handleDisconnect = () => {
     console.log('Controller disconnected!');
     const overlay = document.getElementById('disconnectOverlay');
@@ -646,8 +612,7 @@ const handleDisconnect = () => {
             timerEl.textContent = `Terug in ${sec}s…`;
         } else {
             clearInterval(iv);
-            // Reset everything
-            resetGame(); // This removes victory/game-over/pause overlays and resets state
+            resetGame();
             overlay.classList.remove('active');
             document.getElementById('countdownOverlay').classList.remove('active');
             document.getElementById('gameScreen').classList.remove('active');
@@ -656,117 +621,69 @@ const handleDisconnect = () => {
             $cursor.style.display = 'none';
             $statusDot.classList.remove('connected');
             $status.textContent = 'Wachten op controller…';
-            if (peerConnection) {
-                peerConnection.close();
-                peerConnection = null;
-            }
+            closeConnection();
             ballInitialized = false;
         }
     }, 1000);
 };
 
-const answerPeerOffer = async (offer, peerId) => {
-    if (peerConnection) peerConnection.close();
-    peerConnection = new RTCPeerConnection(servers);
-
-    peerConnection.onicecandidate = (e) => {
-        socket.emit('peerIce', peerId, e.candidate);
-    };
-
-    peerConnection.onconnectionstatechange = () => {
-        const state = peerConnection.connectionState;
-        console.log('Connection state:', state);
-        if (state === 'disconnected' || state === 'failed' || state === 'closed') {
-            handleDisconnect();
-        }
-    };
-
-    peerConnection.ondatachannel = (e) => {
-        console.log('Data channel received:', e.channel.label);
-        dataChannel = e.channel;
-        dataChannel.onmessage = (event) => {
-            const message = JSON.parse(event.data);
-            if (message.type === 'cursor') {
-                $cursor.style.display = 'block';
-                $cursor.style.left = `${message.x * window.innerWidth}px`;
-                $cursor.style.top = `${message.y * window.innerHeight}px`;
-            } else if (message.type === 'tilt') {
-                handleTilt(message.beta, message.gamma);
-            } else if (message.type === 'countdown-ready') {
-                startCountdown();
-            } else if (message.type === 'pause') {
-                pauseGame();
-            } else if (message.type === 'resume') {
-                resumeGame();
-            } else if (message.type === 'play-again') {
-                resetGame();
-            } else if (message.type === 'toggle-sound') {
-                unlockAudio();
-                setSoundEnabled(!soundEnabled);
-            } else if (message.type === 'blow') {
-                freezeEnemies();
-            }
-        };
-        dataChannel.onopen = () => {
-            console.log('Data channel open!');
-            $statusDot.classList.add('connected');
-            // Tell the controller we're connected; it may show permission screen first
-            dataChannel.send(JSON.stringify({ type: 'countdown-start' }));
-            dataChannel.send(JSON.stringify({ type: 'sound-state', enabled: soundEnabled }));
-            dataChannel.send(JSON.stringify({ type: 'room-code', code: roomCode }));
-            $status.textContent = 'Controller verbonden!';
-        };
-    };
-
-    await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-    const answer = await peerConnection.createAnswer();
-    await peerConnection.setLocalDescription(answer);
-    socket.emit('peerAnswer', peerId, answer);
+// ── DataChannel bericht-handler ──
+const handleMessage = (message) => {
+    if (message.type === 'cursor') {
+        $cursor.style.display = 'block';
+        $cursor.style.left = `${message.x * window.innerWidth}px`;
+        $cursor.style.top = `${message.y * window.innerHeight}px`;
+    } else if (message.type === 'tilt') {
+        handleTilt(message.beta, message.gamma);
+    } else if (message.type === 'countdown-ready') {
+        startCountdown();
+    } else if (message.type === 'pause') {
+        pauseGame();
+    } else if (message.type === 'resume') {
+        resumeGame();
+    } else if (message.type === 'play-again') {
+        resetGame();
+    } else if (message.type === 'toggle-sound') {
+        unlockAudio();
+        setSoundEnabled(!soundEnabled);
+    } else if (message.type === 'blow') {
+        freezeEnemies();
+    }
 };
 
+// ── Init: verbinding opzetten via de communicatie-laag ──
 const init = () => {
-    socket = io.connect('/');
+    createConnection('desktop', {
+        onOpen: () => {
+            $statusDot.classList.add('connected');
+            sendMessage({ type: 'countdown-start' });
+            sendMessage({ type: 'sound-state', enabled: soundEnabled });
+            sendMessage({ type: 'room-code', code: roomCode });
+            $status.textContent = 'Controller verbonden!';
+        },
+        onClose: handleDisconnect,
+        onMessage: handleMessage,
+        onSocketConnect: (socketId) => {
+            $status.textContent = 'Wachten op controller…';
 
-    socket.on('connect', () => {
-        console.log(`Connected: ${socket.id}`);
-        $status.textContent = 'Wachten op controller…';
+            const url = `${new URL(`/controller.html?id=${socketId}`, window.location)}`;
+            $controllerLink.href = url;
+            $controllerLink.textContent = url;
 
-        const url = `${new URL(`/controller.html?id=${socket.id}`, window.location)}`;
-        $controllerLink.href = url;
-        $controllerLink.textContent = url;
-
-        const typeNumber = 4;
-        const errorCorrectionLevel = 'L';
-        const qr = qrcode(typeNumber, errorCorrectionLevel);
-        qr.addData(url);
-        qr.make();
-        document.getElementById('qr').innerHTML = qr.createImgTag(6);
-    });
-
-    socket.on('room-code', (code) => {
-        roomCode = code;
-        const $roomCode = document.getElementById('roomCode');
-        if ($roomCode) $roomCode.textContent = `Room: ${code}`;
-        const $gameRoomCode = document.getElementById('gameRoomCode');
-        if ($gameRoomCode) $gameRoomCode.textContent = `Room: ${code}`;
-    });
-
-    socket.on('peerOffer', async (myId, offer, peerId) => {
-        console.log(`Received peerOffer from ${peerId}`);
-        await answerPeerOffer(offer, peerId);
-    });
-
-    socket.on('peerAnswer', async (myId, answer, peerId) => {
-        console.log(`Received peerAnswer from ${peerId}`);
-        if (peerConnection) {
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+            const typeNumber = 4;
+            const errorCorrectionLevel = 'L';
+            const qr = qrcode(typeNumber, errorCorrectionLevel);
+            qr.addData(url);
+            qr.make();
+            document.getElementById('qr').innerHTML = qr.createImgTag(6);
+        },
+        onRoomCode: (code) => {
+            roomCode = code;
+            const $roomCode = document.getElementById('roomCode');
+            if ($roomCode) $roomCode.textContent = `Room: ${code}`;
+            const $gameRoomCode = document.getElementById('gameRoomCode');
+            if ($gameRoomCode) $gameRoomCode.textContent = `Room: ${code}`;
         }
-    });
-
-    socket.on('peerIce', async (myId, candidate, peerId) => {
-        if (!candidate || !peerConnection) return;
-        console.log(`Received peerIce from ${peerId}`);
-        await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
     });
 };
 
